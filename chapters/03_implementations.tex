@@ -2,8 +2,11 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Implementations}\label{chapter:implementations}
+\section{On-Demand Partitioning}
 
-\section{Time Complexity Analysis}
+\section{Software Managed Buffers-based Partitioning}
+\subsection{Lock-based Software Managed Buffers}
+\subsection{Lock-free Software Managed Buffers}
 
 \section{Histogram-based Partitioning}
 \subsection{Radix Partitioning}
@@ -11,12 +14,15 @@
 
 \section{Thread-Local Pages and Merge-based Partitioning}
 
-\section{On-Demand Partitioning}
-
-\section{Software Managed Buffers}
-\subsection{Lock-based Software Managed Buffers}
-\subsection{Lock-free Software Managed Buffers}
-
 \section{Collaborative Morsel Processing}
 \subsection{Collaborative Morsel Processing using Software Managed Buffers}
 \subsection{Collaborative Morsel Processing using Processing Units}
+
+
+\section{Complexity Analysis}
+\subsection{Time Complexity}
+%$\Theta(n)$
+\subsubsection{Tuple Access Count}
+\subsection{Space Complexity}
+%$\Theta(n)$
+\subsubsection{Memory Consumption}
