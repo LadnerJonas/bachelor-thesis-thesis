@@ -1,3 +1,8 @@
 \chapter{\abstractname}
 
 %TODO: Abstract
+Modern streaming database systems rely on efficient data partitioning to achieve scalability and high performance across processing nodes. Partitioned data shuffling is a crucial operation, as it is used to prepare and distribute data for further processing on distributed systems.
+
+In this thesis, various partitioning implementations are compared and evaluated by simulating real-world usage of the shuffle operator. The implementations have to process incoming tuple batches and partition them into output buckets, which are based on slotted pages and can be passed to subsequent operators. The implementations are evaluated based on their performance, scalability and memory consumption.
+
+The results demonstrate that using a lock- and \ac{SMB}-based approach yields the best overall performance, offering both efficiency and ease of implementation. Notably, the proposed locking mechanism minimizes the duration of holding a lock, ensuring minimal contention and contributing to the approach's superior performance.
