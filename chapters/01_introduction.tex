@@ -4,10 +4,14 @@
 \chapter{Introduction}\label{chapter:introduction}
 
 \section{Motivation}
-Growing demand for real-time data analysis and increasing data volume create significant challenges~\parencite{Real-Time-Processing-of-big-data-streams,locality-aware-partitioning-in-parallel-db, join-processing-in-parallel-db}. Stream processing systems address these issues by distributing tasks across worker nodes~\parencite{Real-Time-Processing-of-big-data-streams, parallel-programming-assessment-for-stream-processing-applications}. Data shuffling prepares and distributes tuples among worker nodes~\parencite{RDMA-aware-Data-Shuffling-Operator}. As a core streaming component, the shuffle operator must achieve high throughput and low latency to support efficient downstream processing. This thesis addresses these challenges by focusing on efficient implementations of the shuffle operator.
+Growing demand for real-time data analysis and increasing data volume create significant challenges~\parencite{Real-Time-Processing-of-big-data-streams,locality-aware-partitioning-in-parallel-db, join-processing-in-parallel-db}.
+Distributed and parallel systems like stream processing engines address these issues by distributing tasks across worker nodes~\parencite{Real-Time-Processing-of-big-data-streams, parallel-programming-assessment-for-stream-processing-applications}.
+Data shuffling prepares and distributes tuples among worker nodes~\parencite{RDMA-aware-Data-Shuffling-Operator}.
+As a core streaming component, the shuffle operator must achieve high throughput and low latency to support efficient downstream processing.
+This thesis addresses these challenges by focusing on the most efficient implementations of the shuffle operator.
 
 \section{Streaming processing engines}
-Streaming processing engines are designed to process data as soon as it arrives rather than relying on traditional pre-computed information and index structures~\parencite{Real-Time-Processing-of-big-data-streams}. Their core operations include partitioning and distributing incoming traffic across worker nodes. The distribution process is frequently based on a partitioning function. These partitions can then improve the performance of further operators by ensuring the data locality of interdependent tuples~\parencite{join-processing-in-parallel-db}. Data locality within the worker node is crucial for maintaining performance and scalability in large-scale deployments.
+Streaming processing engines are designed to process data as soon as it arrives rather than relying on traditional pre-computed information and index structures~\parencite{Real-Time-Processing-of-big-data-streams}. Their core operations include partitioning and distributing incoming traffic across worker nodes. The distribution process is frequently based on a partitioning function. These partitions can then improve the performance of further operators by ensuring the data locality of interdependent tuples~\parencite{Locality-sensitive-operators, join-processing-in-parallel-db}. Data locality within the worker node is crucial for maintaining performance and scalability in large-scale deployments.
 
 \section{Shuffle operator}
 The shuffle operator provides a partitioned distribution of tuples, enabling downstream operators to leverage the data locality of partitioned data blocks. For instance, the throughput of the join operator can significantly be improved when tuples assigned to the same hash bucket are shuffled to the same worker node~\parencite{join-processing-in-parallel-db}. Implementing a shuffle operator involves addressing challenges like memory consumption, latency, and scalability. This thesis proposes and evaluates different implementations of the shuffle operator, focusing on their efficiency and performance.
@@ -18,17 +22,22 @@ Slotted pages are a common way to store variable-size tuples within fixed size m
 Typically, the pages consist of three sections: metadata, slots and a variable-size data section. The metadata area contains information like an identifier for the page, what fields the tuples have and the amount of tuples on this page. This fixed-size metadata section is then followed by the slot section. A single slot contains the fixed-size properties, the variable-size length and its start offset in the variable-size data section. In contrast to the previous two sections, the variable-size data section grows from the end of the page towards the slot section of the page.
 
 
-\section{Contribution}
-The key contribution of this thesis is the creation and evaluation of various implementations of the shuffle operator. In order to simulate the real-world usage of the shuffle operator, the following three-step shuffle-simulation is proposed:
+\section{Problem setting}
+The key contribution of this thesis is the creation and evaluation of the most efficient, multithreaded implementations of the shuffle operator.
+In order to simulate the real-world usage of the shuffle operator in a streaming system, the following three-step shuffle-simulation is proposed:
 
 \begin{enumerate}
-    \item Tuple generation: The tuples are generated in a batched manner using a pseudo-random generator. Each implementation requests the ad-hoc generation of tuples, which contain 32-bit key field and an optional variable-size data field.
+    \item Tuple generation: The tuples are generated in a batched manner using a pseudo-random generator. Each implementation requests the ad-hoc generation of tuples, which contain a 32-bit key field and an optional variable-size data field.
 
     \item Data shuffle: The requested, random-generated tuples are then processed using the different implementations and stored within partition buckets. Each partition bucket consists of slotted pages, where the tuple of this partition are stored.
 
     \item Storing tuples on slotted pages: The implementations range from thread-local to shared slotted-page write-out strategies. The implementations using a shared write-out policy, can then be further categorized into locking and lock-free approaches.
 \end{enumerate}
-While the implementations are optimized for the process above, the underlying algorithms can be transferred to any streaming system, that uses data communication platform based on slotted pages.
+This simulation is close to the real world usage of the shuffle operator, as streaming systems work on incoming tuple batches that are not materialized like in traditional relational databases.
+
+Further, we use slotted pages as a communication format between nodes. This is an efficient and widely used format to transport tuples within fixed size data chunks. In contrast, sending each tuple as soon as it is processed, creates significant network overhead and makes downstreaming processing less efficient.
+
+While the implementations are optimized for the simulated process above, the underlying algorithms can be transferred to any streaming system, that forwards data using slotted pages.
 %\section{Section}
 %Citation test~\parencite{latex}.
 
