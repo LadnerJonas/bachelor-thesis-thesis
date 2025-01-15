@@ -2,9 +2,17 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Implementations}\label{chapter:implementations}
-\section{On-Demand Partitioning}
-\subsection{Overview}
+This section explains the implementations and how to implement them efficiently. As the shuffle operator-simulation is based on fixed-size tuples, the explanations of the following implementation, are based on fixed-size tuples as well.
 
+Furthermore, each implementation allocates a slotted page for each partition, as this simplifies the multithreaded-implementation of each algorithm.
+\section{On-Demand Partitioning}
+On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
+\subsection{Overview}
+As soon as this implementation receives a batch of tuples, it processes each tuple individually. First, the hash-function is applied onto the tuple to gather information in which partition this tuple belongs. With this information, we only need to write out the tuple into the corresponding partition. The partition is now locked, and we check, if there is enough space left on the newest slotted page of this partition.
+
+%If this is the case, we first check if this page can fit at least another tuple. This is necessary to create a unique condition, when a new page has to be allocated. If the current tuple will be the last tuple of this page, we must also create a new slotted page for this partition.
+
+%Otherwise,
 \section{Software Managed Buffers-based Partitioning}
 \subsection{Overview}
 \subsection{Lock-based Implementations}
@@ -23,7 +31,6 @@
 \subsection{Collaborative Morsel Processing using Software Managed Buffers}
 \subsection{Collaborative Morsel Processing using Processing Units}
 
-
 \section{Complexity Analysis}
 \subsection{Time Complexity}
 %$\Theta(n)$
@@ -31,3 +38,8 @@
 \subsection{Space Complexity}
 %$\Theta(n)$
 \subsubsection{Memory Consumption}
+
+\section{Implementation-independent Optimizations}
+\subsection{Padded atomics and locks}
+\subsection{Minimal page-locking}
+\subsection{Two-step buffered slotted page write out}
