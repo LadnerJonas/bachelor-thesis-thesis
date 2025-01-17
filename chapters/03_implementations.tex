@@ -4,7 +4,74 @@
 \chapter{Implementations}\label{chapter:implementations}
 This section explains the implementations and how to implement them efficiently. As the shuffle operator-simulation is based on fixed-size tuples, the explanations of the following implementation, are based on fixed-size tuples as well.
 
-Furthermore, each implementation allocates a slotted page for each partition, as this simplifies the multithreaded-implementation of each algorithm.
+\section{Slotted Page Managers}
+As some implementation share the same tuple write-out strategy, we propose the used write-out strategies here and reference them in the following explanations of the concrete implementations.
+
+To further simplify the implementations, we intialize each partition with an empty slotted page. This significantly reduces the complexity of the page manager implementations.
+
+\subsection{Lock-based Page Manager}
+For each partition, we use a single lock and a vector for storing the slotted pages.
+\begin{algorithm}
+\caption{Lock-based Page Manager insert\_tuple Algorithm}\label{Lock-based-page-manager-insert-tuple}
+\SetKwInOut{Input}{input}\SetKwInOut{Output}{output}=
+\Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
+\Output{Tuple inserted into the appropriate slotted page of the specified partition.}
+
+\SetKwFunction{Insert}{ insert\_tuple}
+
+\textbf{function}\Insert{tuple, partition}{
+
+    Acquire lock on \texttt{partition\_locks[partition]}\;
+    \eIf{pages[partition].back().add\_tuple(tuple)}{
+        // Tuple added successfully\;
+    }{
+        pages[partition].emplace\_back(page\_size)\;
+        pages[partition].back().add\_tuple(tuple)\;
+    }
+    Release lock\;
+}
+\end{algorithm}
+As can be seen in Algorithm \ref{Lock-based-page-manager-insert-tuple}, the lock-based insertion process is straightforward.
+The insertion on a given slotted page, can only fail, if the page is full. In that case, we just allocate and append a new slotted page to the page vector of this partition.
+
+Similarly, we can further optimize the write-out by using tuple-batches.
+\begin{algorithm}
+\caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}\label{Lock-based-page-manager-insert-tuple-batch}
+\SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
+\Input{\texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
+\Output{Tuples inserted into one or more slotted pages of the specified partition.}
+
+\SetKwFunction{Insert}{ insert\_tuple\_batch}
+
+\textbf{function}\Insert{tuples, partition}{
+
+    Acquire lock on \texttt{partition\_locks[partition]}\;
+    \For{tuple :s tuples}{
+    \eIf{pages[partition].back().add\_tuple(tuple)}{
+        // Tuple added successfully\;
+    }{
+        pages[partition].emplace\_back(page\_size)\;
+        pages[partition].back().add\_tuple(tuple)\;
+    }}
+    Release lock\;
+}
+\end{algorithm}
+In Algorithm \ref{Lock-based-page-manager-insert-tuple-batch}, we reuse the tuple insertion logic from Algorithm \ref{Lock-based-page-manager-insert-tuple} but acquire the partition lock only once for the entire insertion process.
+Since acquiring and releasing the lock is expensive, this optimization significantly improves performance in multi-threaded scenarios.
+
+\subsection{Lock-free Page Manager}
+
+\subsection{Histogram-based Page Managers}
+\subsubsection{Radix Page Manager}
+\subsubsection{Ad-hoc Radix ("Hybrid") Page Manager}
+
+\subsection{Thread-Local Pages and Merge-based Page Manager}
+
+\subsection{Implementation-independent Optimizations}
+\subsubsection{Padded atomics and locks}
+\subsubsection{Minimal page-locking}
+\subsubsection{Two-step buffered slotted page write out}
+
 \section{On-Demand Partitioning}
 On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
 \subsection{Overview}
@@ -38,8 +105,3 @@ As soon as this implementation receives a batch of tuples, it processes each tup
 \subsection{Space Complexity}
 %$\Theta(n)$
 \subsubsection{Memory Consumption}
-
-\section{Implementation-independent Optimizations}
-\subsection{Padded atomics and locks}
-\subsection{Minimal page-locking}
-\subsection{Two-step buffered slotted page write out}
