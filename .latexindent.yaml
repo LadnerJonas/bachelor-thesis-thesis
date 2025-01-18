@@ -1,0 +1,14 @@
+defaultIndent: "  " # Two-space indentation
+modifyLineBreaks:
+  textWrapOptions:
+    columns: 80 # Wrap lines at 80 characters
+  oneSentencePerLine:
+    manipulateSentences: 1 # One sentence per line
+removeTrailingWhitespace:
+  afterProcessing: 1 # Remove extra spaces at line ends
+indentRules:
+  chapter: "yes"
+  section: "yes"
+  subsection: "yes"
+  subsubsection: "yes"
+backupFolder: "build/"
