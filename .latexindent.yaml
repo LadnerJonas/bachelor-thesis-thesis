@@ -11,4 +11,3 @@ indentRules:
   section: "yes"
   subsection: "yes"
   subsubsection: "yes"
-backupFolder: "build/"
