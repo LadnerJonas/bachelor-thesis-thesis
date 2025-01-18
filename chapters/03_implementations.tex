@@ -155,11 +155,64 @@ If we are writing the last tuple on the page, we add a new page to this partitio
 This is necessary to create a unqiue condition, when a new page has to be allocated.
 With that write information at hand, we can write the tuple onto the slotted page.
 \subsection{Histogram-based Page Managers}
+The following page managers are based on histograms, which typically store tuple count and total tuple size per partition.
+Similar to Section \ref{section:radix-partitioning}, this information can then be used to assign assign memory areas on slotted pages.
 \subsubsection{Radix Page Manager}
+This page manager applies the concept of radix-partitioning on slotted pages.
+It uses an three step process:
+\begin{enumerate}
+  \item Histogram retrieval: Each thread reads its assigned materialized tuple chunk and builds up an histogram.
+        As we are using fixed-size tuples, it only stores the tuple count per partition.
+        This histogram is then forwared to the Radix Page Manager, which collects the histogram of each thread and then moves on to step 2.
+
+  \item Page allocation: With all histograms at hand, the page manager sums up each histogram into a global histogram.
+        This global histogram stores how many tuples each partition has to store.
+        With that information we can allocate required pages for each partition.
+        When all pages are ready to be used, step 3 begins.
+
+  \item Assignment of slotted page sub-chunks: Each thread uses its local histogram to request storage locations for its tuples.
+        The page manager uses the pre-allocated pages to assign each thread one or more memory chunks.
+        These memory chunks can then be used exclusivly by the thread to store each tuples.
+        Only the tuple count in the metadata has to be atomicly updated once, to signal that this thread has finished its work on this page.
+        Otherwise, this write-out process does not rely on any synchronisation after the memory chunks.
+\end{enumerate}
+After these three steps are done, the page manager is finished.
+Each page can be send to its receiver, once the expected tuple count is reached.
+This can be done by the last thread to increment the tuple count.
+
 \subsubsection{Ad-hoc Radix ("Hybrid") Page Manager}
+The idea of the previous Radix Page Manager can be used to construct an approach, where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
+This page manager merges the three steps of the Radix Page Manager into one.
 
+A thread hands in its histogram and request the memory chunks, where the tuples can be written.
+The page manager reads the histogram and processes each partition individually.
+For each partition, where a tuple has to be stored, the lock of the partition is aquired.
+If there is any space left on a partition, it is used up and assigned to this thread.
+When the current page is full, a new page is allocated and the page manager continues the assignment process.
+These exclusive memory locations are then used by the thread to store its tuples.
+
+In comparision to the Radix Page Manager, this page manager does not pre-allocate all necessary pages.
+Instead it allocates the pages when needed.
+Furthermore, a thread can already receive its memory chunks, while other threads are still constructing their histograms.
+This allows this implementation to avoid materialization of all tuples.
 \subsection{Thread-Local Pages and Merge-based Page Manager}
+A further step into reducing the necessaty of synchronsation are thread-local slotted pages.
+This slotted page management scheme can be split into two phases:
+\begin{enumerate}
+  \item Thread-local write-out: These slotted pages are exclusivly used by the owning thread and after the tuple processing is done, each thread hands in their pages.
+        When the page manager has received all pages of each thread, the merging phase is started.
 
+  \item Page merging: The page manager splits up all partitions onto the available threads.
+        Each thread is then responsible for merging the slotted pages for each partition in the assigned partition range.
+        To minimize tuple movement, the slotted pages a sorted decreasingly by the tuple count.
+        Then the pages fewer tuples are merged into the fuller pages.
+        It can be the cases that the last page cannot be fully merged into any other slotted page.
+        Then this page has to be reordered so that the slots and data section start at the section beginnings.
+        This is necessary to avoid having an gap at the beginnng of the slot or data section.
+\end{enumerate}
+After the merging phase, all tuples are stored on the least possible amount of slotted pages.
+During the thread-local processing, it is likely that more slotted pages than necessary are created.
+This can lead to an significant higher memory consumption than the previous approaches.
 \subsection{Implementation-independent Optimizations}
 \subsubsection{Padded atomics and locks}
 \subsubsection{Minimal page-locking}
