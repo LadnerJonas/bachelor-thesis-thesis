@@ -5,6 +5,18 @@
 This section explains the implementations and how to implement them efficiently.
 As the shuffle operator-simulation is based on fixed-size tuples, the explanations of the following implementation, are based on fixed-size tuples as well.
 
+\section{Partitioning}
+We generate our tuples using an pseudo-random number generator.
+To distribute the tuples into partitions, we use the following function:
+\begin{equation}
+  f(t) = t\textrm{.key}\ \%\ \textrm{partitions}
+\end{equation}
+
+As the modulo calculation is quite expensive, it we use the following partitioning function, when the count of partitions is a power of two:
+\begin{equation}
+  f(t) = t\textrm{.key}\ \&\ (\textrm{partitions - 1})
+\end{equation}
+
 \section{Slotted Pages}
 Slotted pages store their information on fixed size memory blocks, that are split up in three sections: a fixed-size header, slots and a data section.
 We are using slotted pages with a total size of 5 MiB per page.
@@ -214,9 +226,28 @@ After the merging phase, all tuples are stored on the least possible amount of s
 During the thread-local processing, it is likely that more slotted pages than necessary are created.
 This can lead to an significant higher memory consumption than the previous approaches.
 \subsection{Implementation-independent Optimizations}
+We use the following optimizations to speed up our simulation of the shuffle operator.
 \subsubsection{Padded atomics and locks}
+All implementations, that use an array of partition locks, are affected by false sharing.
+False sharing is caused when an cache line stores two independent values and one \ac{CPU} core is modifying the first value.
+Then another CPU core wants to access the second value, which causes an cache miss.
+
+This performance degration can be avoided by storing each individual partition lock aligned to the L1-cache line boundary.
+This significantly reduces the amount of L1-cache misses, as the partition locks are frequently accessed.
+
 \subsubsection{Minimal page-locking}
+When holding a partition lock, the tuple write-out onto a slotted page is an expensive operation.
+To reduce the lock-duration, we gather the necessary write-out information and prepare the next tuple insertion, and releasing the lock before the actual tuple write-out.
+
 \subsubsection{Two-step buffered slotted page write out}
+When writing out a batch of tuples onto a slotted page, we can process each tuple individually.
+First, we construct the slot for the tuple, and then we store the variable-size data in the data section at the end of page.
+Linux on an x86-64 machine, typically uses 4 KiB memory pages.
+As we use 5 MiB slotted pages, it is expected that the slot and data are on different memory pages.
+
+To reduce the amount simultanious accessed pages, we store our batches in a slot phase and a data phase.
+As we are now writing to either the slot or data section, we switch between memory pages less often.
+This is more friendly to the \ac{CPU} cache and the \ac{TLB}.
 
 \section{On-Demand Partitioning}
 On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
