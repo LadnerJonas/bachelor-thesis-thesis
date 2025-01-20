@@ -169,7 +169,7 @@ With that write information at hand, we can write the tuple onto the slotted pag
 \subsection{Histogram-based Page Managers}
 The following page managers are based on histograms, which typically store tuple count and total tuple size per partition.
 Similar to Section \ref{section:radix-partitioning}, this information can then be used to assign assign memory areas on slotted pages.
-\subsubsection{Radix Page Manager}
+\subsubsection{Radix Page Manager} \label{subsubsection-Radix-Page-Manager}
 This page manager applies the concept of radix-partitioning on slotted pages.
 It uses an three step process:
 \begin{enumerate}
@@ -192,7 +192,7 @@ After these three steps are done, the page manager is finished.
 Each page can be send to its receiver, once the expected tuple count is reached.
 This can be done by the last thread to increment the tuple count.
 
-\subsubsection{Ad-hoc Radix ("Hybrid") Page Manager}
+\subsubsection{Ad-hoc Radix ("Hybrid") Page Manager} \label{subsubsection-Ad-hoc-Radix-Page-Manager}
 The idea of the previous Radix Page Manager can be used to construct an approach, where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
 This page manager merges the three steps of the Radix Page Manager into one.
 
@@ -249,7 +249,7 @@ To reduce the amount simultanious accessed pages, we store our batches in a slot
 As we are now writing to either the slot or data section, we switch between memory pages less often.
 This is more friendly to the \ac{CPU} cache and the \ac{TLB}.
 
-\section{On-Demand Partitioning}
+\section{On-Demand Partitioning} \label{section-On-Demand-Partitioning}
 On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
 \subsection{Overview}
 As soon as this implementation receives a batch of tuples, it processes each tuple individually.
@@ -271,10 +271,38 @@ We can now use the batch insertion features from the page managers.
 Batch insertions are more \ac{CPU}-cache and \ac{TLB} friendly, as we switch our modified memory locations less often.
 
 \section{Histogram-based Partitioning}
+Similar to Radix Partitioning (see Section \ref{section:radix-partitioning}), a histogram can be used to assign threads memory location to store the tuples.
 \subsection{Overview}
-\subsection{Radix Partitioning}
-\subsection{Ad-hoc Radix ("Hybrid") Partitioning}
+A histogram in the context of Radix Partitioning stores information like count of tuples and their total size per partition.
+This information can then be used to assign each thread exactly the memory block it needs.
 
+In our fixed-size tuple case, we only store the count of tuples of each partition.
+As we have to construct the whole histogram, before the thread can store any tuples, we have to iterate over all tuples twice.
+The first phase is necessary to create the histogram and receive memory locations to store the tuples.
+The second phase then uses these memory locations to store the tuples.
+
+Similar to On-Demand Partitioning (see Section \ref{section-On-Demand-Partitioning}), the proposed implementations below benefit from \acfp{SMB} to write out tuples in batches.
+\subsection{Radix Partitioning}
+This implementation naively implements Radix Partitioning on a stream of incoming tuple batches.
+First, we fully materialize all generated tuples.
+Then each thread receives a part of the materialized tuples.
+Just like in the traditional Radix Partitioning, we construct the histogram for the assigned tuples.
+
+The Radix Page Manager (see Section \ref{subsubsection-Radix-Page-Manager}) collects the histograms of all threads.
+Each thread then receives their own, exclusive memory locations to store their tuples.
+This allows us to store the tuples without any synchronisation.
+Only the tuple count in the metadata section of each slotted page has to be updated atomically.
+As soon as a slotted page reaches its proposed tuple count, it can be send to next downstream operator.
+
+\subsection{Ad-hoc Radix ("Hybrid") Partitioning}
+As the full materialization of all generated tuples and the wait times until the global histogram is created, are quite expensive, we propose a more efficent solution.
+Instead of materializing all tuples, we process all incoming tuples morsel-driven.
+For a given morsel, we then create an histogram.
+The Ad-hoc Radix Page Manager (see Section \ref{subsubsection-Ad-hoc-Radix-Page-Manager}) uses this morsel-histogram to greedily assign this thread exclusive memory location to store the tuples.
+
+Just like in the streaming Radix-Partitioning case above, the tuples are stored on each slotted page without needing synchronisation.
+The tuple count in the metadata section also requires synchronsiation in form of an atomic tuple count.
+As the morsel size are smaller than the assigned part of the materialized tuples, this counter has to be increased more often.
 %\section{Thread-Local Pages and Merge-based Partitioning}
 %\subsection{Overview}
 
