@@ -79,7 +79,7 @@ The remainder of the tuple is then stored in the data section at the end of each
 As we are using fixed-size tuples in our simulation, we only need to have the tuple slot index to be able to store the tuple on the page.
 In constrast, when dealing with variable size tuples, slot index and data offset are needed to store a tuple.
 
-\section{Slotted Page Managers}
+\section{Slotted Page Managers}\label{section-slotted-page-managers}
 As some implementation share the same tuple write-out strategy, we propose the used write-out strategies here and reference them in the following explanations of the concrete implementations.
 
 To further simplify the implementations, we intialize each partition with an empty slotted page.
@@ -254,24 +254,29 @@ On-demand Partitioning is the simplest algorithm to implement the shuffle operat
 \subsection{Overview}
 As soon as this implementation receives a batch of tuples, it processes each tuple individually.
 First, the hash-function is applied onto the tuple to gather information in which partition this tuple belongs.
-With this information, we only need to write out the tuple into the corresponding partition.
-The partition is now locked, and we check, if there is enough space left on the newest slotted page of this partition.
+With this information, we can write out the tuple into the corresponding partition.
 
-%If this is the case, we first check if this page can fit at least another tuple. This is necessary to create a unique condition, when a new page has to be allocated. If the current tuple will be the last tuple of this page, we must also create a new slotted page for this partition.
+This implementation is compatible with the lock-based or lock-free Page Manager and the Thread-Local Pages and Merge-based Page Manager (see Section \ref{section-slotted-page-managers})
 
-%Otherwise,
-\section{Software Managed Buffers-based Partitioning}
-\subsection{Overview}
-\subsection{Lock-based Implementations}
-\subsection{Lock-free Implementations}
+\subsection{Software Managed Buffers-based Partitioning}
+
+This naive approach can be significantly improved by using \acfp{SMB}.
+Instead of immediately writing out the tuple, it can be stored in a thread-locally allocated buffer.
+The tuples, that belong do a partition, are stored in a dedicated area within this buffer.
+As soon as this sub-region capacity is full, we write out the tuples to a slotted page.
+Similarly, if all incoming tuples have been processed, we write out all remaining tuples inside the buffer.
+
+This temporal storage brings another benefit.
+We can now use the batch insertion features from the page managers.
+Batch insertions are more \ac{CPU}-cache and \ac{TLB} friendly, as we switch our modified memory locations less often.
 
 \section{Histogram-based Partitioning}
 \subsection{Overview}
 \subsection{Radix Partitioning}
 \subsection{Ad-hoc Radix ("Hybrid") Partitioning}
 
-\section{Thread-Local Pages and Merge-based Partitioning}
-\subsection{Overview}
+%\section{Thread-Local Pages and Merge-based Partitioning}
+%\subsection{Overview}
 
 \section{Collaborative Morsel Processing}
 \subsection{Overview}
