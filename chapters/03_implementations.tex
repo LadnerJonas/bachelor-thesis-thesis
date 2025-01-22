@@ -21,11 +21,6 @@ As the modulo calculation is quite expensive, it we use the following partitioni
 Slotted pages store their information on fixed size memory blocks, that are split up in three sections: a fixed-size header, slots and a data section.
 We are using slotted pages with a total size of 5 MiB per page.
 
-In our implementation, we only store the tuple count in the header.
-To construct our shuffle-simulation close to the real world usage, we split up each tuple.
-In the slot information, we store the 4-Byte key together with data offset and length information.
-The remainder of the tuple is then stored in the data section at the end of each page.
-
 \begin{figure}[h]
   \begin{tikzpicture}
     % Page Outline
@@ -75,6 +70,10 @@ The remainder of the tuple is then stored in the data section at the end of each
   \centering
   \caption{Slotted Page grow visualization}
 \end{figure}
+In our implementation, we only store the tuple count in the header.
+To construct our shuffle-simulation close to the real world usage, we split up each tuple.
+In the slot information, we store the 4-Byte key together with data offset and length information.
+The remainder of the tuple is then stored in the data section at the end of each page.
 
 As we are using fixed-size tuples in our simulation, we only need to have the tuple slot index to be able to store the tuple on the page.
 In constrast, when dealing with variable size tuples, slot index and data offset are needed to store a tuple.
@@ -250,8 +249,8 @@ As we are now writing to either the slot or data section, we switch between memo
 This is more friendly to the \ac{CPU} cache and the \ac{TLB}.
 
 \section{On-Demand Partitioning} \label{section-On-Demand-Partitioning}
-On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
 \subsection{Overview}
+On-demand Partitioning is the simplest algorithm to implement the shuffle operator.
 As soon as this implementation receives a batch of tuples, it processes each tuple individually.
 First, the hash-function is applied onto the tuple to gather information in which partition this tuple belongs.
 With this information, we can write out the tuple into the corresponding partition.
@@ -271,8 +270,8 @@ We can now use the batch insertion features from the page managers.
 Batch insertions are more \ac{CPU}-cache and \ac{TLB} friendly, as we switch our modified memory locations less often.
 
 \section{Histogram-based Partitioning}
-Similar to Radix Partitioning (see Section \ref{section:radix-partitioning}), a histogram can be used to assign threads memory location to store the tuples.
 \subsection{Overview}
+Similar to Radix Partitioning (see Section \ref{section:radix-partitioning}), a histogram can be used to assign threads memory location to store the tuples.
 A histogram in the context of Radix Partitioning stores information like count of tuples and their total size per partition.
 This information can then be used to assign each thread exactly the memory block it needs.
 
@@ -308,9 +307,52 @@ As the morsel size are smaller than the assigned part of the materialized tuples
 
 \section{Collaborative Morsel Processing}
 \subsection{Overview}
-\subsection{Collaborative Morsel Processing using Software Managed Buffers}
-\subsection{Collaborative Morsel Processing using Processing Units}
+In the previous implementations, each thread can write out to each partition.
+We avoid invalid writes by using locks or atomic operation.
+Shared usage of locks or atomics causes contention and frequent cache invalidations.
 
+To reduce contention, we assigning each thread a partition range.
+A thread will only write out a tuple, if the partitioning function maps it to a partition within this partitioning range.
+Nevertheless, we still have to partition all tuples to their correct partition.
+Because of that, we have to process each tuple in a way that it can be stored any partition.
+Thus, a tuple must be processed by a group of threads, where the union of their individual partition ranges covers all possible partitions.
+\subsection{Collaborative Morsel Processing with exclusive partition ranges}
+This implementation constructs the partition ranges so that it fufills two conditions:
+\begin{enumerate}
+  \item Any partition range does not overlap with any other partition range.
+  \item The union of all partition ranges results in a complete coverage of all possible partitions.
+\end{enumerate}
+With these two conditions in place, we avoid having to syncronize the tuple write-out process.
+But we have to process each tuple $p$ times, where $p$ is the number of partition ranges.
+As the incoming tuples only have to be read, they typically can reside in the L2 or L3 \ac{CPU} caches.
+
+Assuming uniform distribution across all partitions, the implementations efficiency decreases with increasing CPU core count.
+If we distribute the partitions into fair partition ranges, the likelyhood of a given tuple to be partitioned in a given partition range is:
+\begin{equation}\label{equation-CMP-exclusive-partition-ranges}
+  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{p},  \quad \forall i
+\end{equation}
+As we want to increase the amount of partition ranges ($p$) with increasing core count, the likelyhood that a thread processes a tuple for its assigned partition range decreases.
+\subsection{Collaborative Morsel Processing using processing units}
+As we can see in the above \ac{CMP} with exclusive partition ranges implementation, exclusive partition ranges theoretical performance does not scale well.
+This implementation aims to reduce this impact by using processing units.
+A processing unit is a partition of $t$ threads, that split up the total partitions into $t$ fair, exclusive partition ranges.
+Again, within a processing unit, no partition ranges overlap.
+
+When we use multiple processing units, we have to synchronise the tuple write-out again.
+In constrast to previous implementations without exclusive partition ranges, each partition can be written by only one thread per processing unit.
+This significantly reduces the contention on the synchronisation mechanism of each partition.
+
+Furthermore, each tuples has to be only processed by a single processing unit.
+Assuming we fairly split up our $c$ \ac{CPU} cores into $pu$ processing units, then each processing unit will have around $t\approx\frac{c}{pu}$ threads to process tuples.
+When we increase to count of CPU cores and processing units in a similar manner, then the amount of threads per processing unit remains constant.
+This means our likelyhood of processing a tuple, that belongs to into the partition range of a randomly-selected thread is:
+\begin{equation}\label{equation-CMP-PU}
+  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{t},  \quad \forall i
+\end{equation}
+
+When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units constant, the processing efficieny remains constant.
+In contrast, when using \acl{CMP} with exclusive partition ranges the amount of exclusive partition ranges increases with the CPU core count.
+This then leads to a decrease of processing efficiency when increasing the CPU cores.
 \section{Complexity Analysis}
 \subsection{Time Complexity}
 $\Theta(n)$
