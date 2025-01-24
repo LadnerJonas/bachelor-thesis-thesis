@@ -305,7 +305,7 @@ As the morsel size are smaller than the assigned part of the materialized tuples
 %\section{Thread-Local Pages and Merge-based Partitioning}
 %\subsection{Overview}
 
-\section{Collaborative Morsel Processing}
+\section{Collaborative Morsel Processing}\label{section-Collaborative-Morsel-Processing}
 \subsection{Overview}
 In the previous implementations, each thread can write out to each partition.
 We avoid invalid writes by using locks or atomic operation.
@@ -343,24 +343,55 @@ In constrast to previous implementations without exclusive partition ranges, eac
 This significantly reduces the contention on the synchronisation mechanism of each partition.
 
 Furthermore, each tuples has to be only processed by a single processing unit.
-Assuming we fairly split up our $c$ \ac{CPU} cores into $pu$ processing units, then each processing unit will have around $t\approx\frac{c}{pu}$ threads to process tuples.
+Assuming we fairly split up our $c$ \ac{CPU} cores into $pu$ processing units, then each processing unit will have around $pt\approx\frac{c}{pu}$ threads to process tuples.
 When we increase to count of CPU cores and processing units in a similar manner, then the amount of threads per processing unit remains constant.
 This means our likelyhood of processing a tuple, that belongs to into the partition range of a randomly-selected thread is:
 \begin{equation}\label{equation-CMP-PU}
-  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{t},  \quad \forall i
+  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{pt},  \quad \forall i
 \end{equation}
 
 When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units constant, the processing efficieny remains constant.
 In contrast, when using \acl{CMP} with exclusive partition ranges the amount of exclusive partition ranges increases with the CPU core count.
 This then leads to a decrease of processing efficiency when increasing the CPU cores.
+
+\section{Thread-Local Pages and Merge-based Partitioning}
+
 \section{Complexity Analysis}
 \subsection{Time Complexity}
-$\Theta(n)$
+To shuffle the tuples into partitions, we have to process every tuple.
+Thus, $\Omega(n)$ is the lowerbound for all shuffle implementations.
+As we process each tuple at most $c = \textrm{max}(2, t)$, with $t$ denoting the thread count, times and only apply $O(1)$ operations on each tuple, we can upperbound the implementations time complexity using this constant $O(c\cdot n) = O(n)$.
+Combining both lower- and upperbound, our proposed implementations run in $\Theta(n) = \Omega(n) \cap O(n) $.
+\subsubsection{Tuple Access Frequency}
+As the theoretical Time Complexity analysis above hides the constant $c = \textrm{max}(2, t)$, we list the tuple access frequency per implementation:
+\begin{itemize}
+  \item On-Demand Partitioning: Every tuple is only processed once and directly written to its final destination.
+        When we do not use \acp{SMB}, we write each tuple directly onto the slotted page and only access it once.
+        In comparision, when using \acp{SMB} we temporally store the tuple in the buffer, which increases the access count to two.
+  \item Histogram-based Partitioning: To create a Histogram, we have to access the the tuple once.
+        Furthermore, if the implementation requires full materialization, we have to materialize all tuples before processing it.
+        This means that the tuple access frequency is either two or three, depending on if materialization is necessary.
 
-Proof Idea: Lower bound trivial, upper bound bank method
-\subsubsection{Tuple Access Count}
+  \item Collaborative Morsel Processing: In the simpler implementation with exlusive partition ranges, we have to process each tuple atleast $p$ times, with $p$ denoting the count of exlusive partition ranges.
+        As we use \acp{SMB}, we access each tuple twice when processing it.
+        Thus, the tuple access frequency is $2p$ .
+
+        When using processing units, we only have to process at most $\textrm{max}(pt_i), \; \forall i$ times.
+        $pt_i$ is the total number of threads (and count of exlusive partition ranges) of processing unit $i$.
+        Similarly, it follows that the tuple access frequency upper bounded by $2 * \textrm{max}(pt_i), \; \forall i$ as we use \acp{SMB} as well.
+
+  \item Thread-Local Pages and Merge-based Partitioning: In this implementation, we use \acp{SMB} as well.
+        Similar to the On-Demand Partitioning, we have to at least process the tuples two times.
+        But as we are using thread-local slotted pages, we may have to merge a slotted page into another page.
+        A tuple can only be merged into another page or moved to a different location on the page, onces.
+        Thus, our tuple access frequency is three.
+\end{itemize}
 \subsection{Space Complexity}
-$\Theta(n)$
-
-Proof Idea: Lower bound trivial, upper bound bank method
+Similary as in the Time Complexity analysis, we have to store each tuple at least once.
+Thus, we can set a lowerbound of $\Omega(n)$.
+Only, in the full materialization of Radix Partitioning, we create a copy of each tuple to store it on the page.
+Otherwise, we only move the tuples until it is stored in its final location on a slotted page.
+As the \aclp{SMB} are constant, we can upper bound it by a constant $c_{SMB}$.
+With this information, we can define the upperbound for the Space Complexity to $O(2 * n + c_{SMB}) = O(n)$.
+It now follows that the Space Complexity of each implementation is $\Theta(n) = \Omega(n) \cap O(n) $ .
 \subsubsection{Memory Consumption}
