@@ -2,25 +2,26 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Implementations}\label{chapter:implementations}
-This section explains the implementations and how to implement them efficiently.
-As the shuffle operator-simulation is based on fixed-size tuples, the explanations of the following implementation, are based on fixed-size tuples as well.
+This section explains the shuffle-operator implementations and how to implement them efficiently.
+As the shuffle operator simulation is based on fixed-size tuples, the explanations of the following implementations are based on fixed-size tuples as well.
 
 \section{Partitioning}
-We generate our tuples using an pseudo-random number generator.
+We generate our tuples using a pseudo-random number generator.
 To distribute the tuples into partitions, we use the following function:
 \begin{equation}
   f(t) = t\textrm{.key}\ \%\ \textrm{partitions}
 \end{equation}
 
-As the modulo calculation is quite expensive, it we use the following partitioning function, when the count of partitions is a power of two:
+As the modulo calculation is quite expensive, we use the following partitioning function when the number of partitions is a power of two:
 \begin{equation}
   f(t) = t\textrm{.key}\ \&\ (\textrm{partitions - 1})
 \end{equation}
-
+Thus, we only need a substraction and a logical-and instruction to calculate in which partition a given tuple is placed.
+As the count of partitions remains constant during the shuffle-operator execution, we can extract the constant $\textrm{partitions - 1}$.
+Now, we only need a single logical-and instruction to calculate the partition.
 \section{Slotted Pages}
-Slotted pages store their information on fixed size memory blocks, that are split up in three sections: a fixed-size header, slots and a data section.
+Slotted pages store their information on fixed-size memory blocks that are split up into three sections: a fixed-size header, slots, and a data section.
 We are using slotted pages with a total size of 5 MiB per page.
-
 \begin{figure}[h]
   \begin{tikzpicture}
     % Page Outline
@@ -70,22 +71,23 @@ We are using slotted pages with a total size of 5 MiB per page.
   \centering
   \caption{Slotted Page grow visualization}
 \end{figure}
-In our implementation, we only store the tuple count in the header.
-To construct our shuffle-simulation close to the real world usage, we split up each tuple.
-In the slot information, we store the 4-Byte key together with data offset and length information.
-The remainder of the tuple is then stored in the data section at the end of each page.
 
-As we are using fixed-size tuples in our simulation, we only need to have the tuple slot index to be able to store the tuple on the page.
-In constrast, when dealing with variable size tuples, slot index and data offset are needed to store a tuple.
+In our implementation, we only store the tuple count in the header.
+We split each tuple to construct our shuffle simulation close to real-world usage.
+Each slot contains the 4-byte key together with data offset and length information.
+We store the remainder of the tuple in the data section at the end of each page.
+
+As we use fixed-size tuples in our simulation, we only need the tuple slot index to store the tuple on the page.
+In contrast, when dealing with variable-size tuples, slot index and data offset are needed to store a tuple.
 
 \section{Slotted Page Managers}\label{section-slotted-page-managers}
-As some implementation share the same tuple write-out strategy, we propose the used write-out strategies here and reference them in the following explanations of the concrete implementations.
+As some implementations share the same tuple write-out strategy, we propose the used write-out strategies here and reference them in the following explanations of the concrete implementations.
 
-To further simplify the implementations, we intialize each partition with an empty slotted page.
-This significantly reduces the complexity of the page manager implementations.
+We initialize each partition with an empty slotted page to simplify the implementations.
+Initializing each partition with a slotted page significantly reduces the complexity of the page manager implementations.
 
 \subsection{Lock-based Page Manager}
-For each partition, we use a single lock and a vector for storing the slotted pages.
+We use a single lock and a vector for each partition to store the slotted pages.
 \begin{algorithm}[h]
   \caption{Lock-based Page Manager insert\_tuple Algorithm}\label{Lock-based-page-manager-insert-tuple}
   \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
@@ -118,9 +120,9 @@ Since acquiring and releasing the lock is expensive, this optimization significa
 
 \subsection{Lock-free Page Manager}
 As holding a lock of a partition denies a second thread to also write out tuples, we propose a lock-free implementation.
-In comparision to the lock-based variant, we now have to store our slotted pages in a pointer-stable data structure.
-This is necessary to ensure threads can work simultanious, while a thread adds a new slotted page.
-Furthermore, we have to edit the slotted page metadata using compare-and-exchange operations to avoid losing writes from other threads.
+Compared to the lock-based variant, we must store our slotted pages in a pointer-stable data structure.
+A pointer-stable data structure is necessary to ensure threads can work simultaneously while a thread adds a new slotted page.
+Furthermore, we must edit the slotted page metadata using compare-and-exchange operations to avoid losing writes from other threads.
 
 \begin{algorithm}[h]
   \caption{Lock-free Slotted Page increment\_and\_fetch\_opt\_write\_info Algorithm}\label{Lock-free-page-increment}
@@ -138,12 +140,12 @@ Furthermore, we have to edit the slotted page metadata using compare-and-exchang
     return \{page\_data.get(), page\_size, current\_tuple\_count\}\;
   }
 \end{algorithm}
-In order to gather the information, where we can write a tuple, we increment the tuple count using compare-and-exchange.
-This index then acts as our location, where our tuple is placed on the page.
-In Algorithm \ref{Lock-free-page-increment}, we also add an condition to stop attempting to further increase the count of tuples on the page, if the maximum is reached.
-This ensures that threads move to the next allocated page.
-Given the index, where the tuple is placed, we also append a pointer of the start of the page and the page size.
-This ensures we can write the page without requiring any further information.
+In order to gather the information where we can write a tuple, we increment the tuple count using compare-and-exchange.
+This previously stored index then acts as our location, where we store the tuple on the page.
+In Algorithm \ref{Lock-free-page-increment}, we also add a condition to stop attempting to further increase the count of tuples on the page if it is full.
+This condition ensures that threads move to the newly allocated page.
+Given the index, where the tuple is placed, we also append a pointer to the start of the page and the page size.
+This information ensures we can write the page without requiring any further information.
 
 \begin{algorithm}[h]
   \SetKwFunction{Insert}{ insert\_tuple}
@@ -161,92 +163,93 @@ This ensures we can write the page without requiring any further information.
       add\_page(partition)\;
     }
     LockFreeSlottedPage::add\_tuple\_using\_index(wi, tuple)\; } \end{algorithm} Using the Algorithm \ref{Lock-free-page-increment}, we retrieve the information to write the tuple in Algorithm \ref{Lock-free-page-manager-insert-tuple}.
-We read from an atomically-stored pointer to our current page, until we are assigned an index on a slotted page.
-If we are writing the last tuple on the page, we add a new page to this partition.
-This is necessary to create a unqiue condition, when a new page has to be allocated.
-With that write information at hand, we can write the tuple onto the slotted page.
+We read from an atomically stored pointer to our current page until we receive an index on a slotted page.
+If we write the last tuple on the page, we add a new page to this partition.
+This last-tuple-check is necessary to create a unique condition when allocating a new page.
+With that information, we can write the tuple onto the slotted page.
 \subsection{Histogram-based Page Managers}
-The following page managers are based on histograms, which typically store tuple count and total tuple size per partition.
-Similar to Section \ref{section:radix-partitioning}, this information can then be used to assign assign memory areas on slotted pages.
+The following page managers use histograms to keep track of the count of tuples per partition within a given set of tuples.
+Similar to Section \ref{section:radix-partitioning}, this information can be used to assign memory areas on slotted pages.
 \subsubsection{Radix Page Manager} \label{subsubsection-Radix-Page-Manager}
 This page manager applies the concept of radix-partitioning on slotted pages.
-It uses an three step process:
+It uses a three-step process:
 \begin{enumerate}
-  \item Histogram retrieval: Each thread reads its assigned materialized tuple chunk and builds up an histogram.
+  \item Histogram retrieval: Each thread reads its assigned materialized tuple chunk and
+        builds up a histogram.
         As we are using fixed-size tuples, it only stores the tuple count per partition.
-        This histogram is then forwared to the Radix Page Manager, which collects the histogram of each thread and then moves on to step 2.
+        Then, we forward this histogram to the Radix Page Manager, which collects the histogram of each thread and then moves on to step 2.
 
-  \item Page allocation: With all histograms at hand, the page manager sums up each histogram into a global histogram.
+  \item Page allocation: With all histograms at hand, the page manager sums up each
+        histogram into a global histogram.
         This global histogram stores how many tuples each partition has to store.
-        With that information we can allocate required pages for each partition.
+        With that information, we can allocate the required pages for each partition.
         When all pages are ready to be used, step 3 begins.
 
-  \item Assignment of slotted page sub-chunks: Each thread uses its local histogram to request storage locations for its tuples.
+  \item  Assignment of slotted page sub-chunks: Each thread uses its local histogram to
+        request storage locations for its tuples.
         The page manager uses the pre-allocated pages to assign each thread one or more memory chunks.
-        These memory chunks can then be used exclusivly by the thread to store each tuples.
+        The thread can then use these memory chunks exclusively to store each tuple.
         Only the tuple count in the metadata has to be atomicly updated once, to signal that this thread has finished its work on this page.
-        Otherwise, this write-out process does not rely on any synchronisation after the memory chunks.
+        Otherwise, this write-out process does not rely on synchronization after the memory chunk distribution.
 \end{enumerate}
-After these three steps are done, the page manager is finished.
-Each page can be send to its receiver, once the expected tuple count is reached.
-This can be done by the last thread to increment the tuple count.
+After these three steps, each page can be sent to its receiver once the expected tuple count is reached.
+The last thread to increment the tuple count can do this.
 
 \subsubsection{Ad-hoc Radix ("Hybrid") Page Manager} \label{subsubsection-Ad-hoc-Radix-Page-Manager}
-The idea of the previous Radix Page Manager can be used to construct an approach, where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
+The idea of the previous Radix Page Manager can be used to construct an approach where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
 This page manager merges the three steps of the Radix Page Manager into one.
 
-A thread hands in its histogram and request the memory chunks, where the tuples can be written.
+A thread hands in its histogram and requests the memory chunks, where the tuples can be written.
 The page manager reads the histogram and processes each partition individually.
-For each partition, where a tuple has to be stored, the lock of the partition is aquired.
+We acquire the partition lock for each partition where at least a single tuple has to be stored.
 If there is any space left on a partition, it is used up and assigned to this thread.
-When the current page is full, a new page is allocated and the page manager continues the assignment process.
-These exclusive memory locations are then used by the thread to store its tuples.
+When the current page is full, we allocate a new page, and the page manager continues the assignment process.
+Each thread uses these exclusive memory locations to store its tuples.
 
-In comparision to the Radix Page Manager, this page manager does not pre-allocate all necessary pages.
-Instead it allocates the pages when needed.
-Furthermore, a thread can already receive its memory chunks, while other threads are still constructing their histograms.
-This allows this implementation to avoid materialization of all tuples.
+Compared to the Radix Page Manager, this page manager does not pre-allocate all necessary pages.
+Instead, it allocates the pages when needed.
+Furthermore, a thread can already receive its memory chunks while others still construct their histograms.
+This change allows this implementation to avoid the materialization of all tuples.
 \subsection{Thread-Local Pages and Merge-based Page Manager}\label{subsection-Thread-Local-Pages-Page-Manager}
-A further step into reducing the necessaty of synchronsation are thread-local slotted pages.
-This slotted page management scheme can be split into two phases:
+A further step into reducing the necessity of synchronization is thread-local slotted pages.
+We split this slotted page management scheme into two phases:
 \begin{enumerate}
-  \item Thread-local write-out: These slotted pages are exclusivly used by the owning thread and after the tuple processing is done, each thread hands in their pages.
-        When the page manager has received all pages of each thread, the merging phase is started.
+  \item Thread-local write-out: These slotted pages are exclusively used by the owning thread, and after the thread finishes its tuple processing, each thread hands in its pages.
+        When the page manager receives all pages of each thread, the merging phase starts.
 
-  \item Page merging: The page manager splits up all partitions onto the available threads.
+  \item Page merging: The page manager splits all partitions onto the available threads.
         Each thread is then responsible for merging the slotted pages for each partition in the assigned partition range.
-        To minimize tuple movement, the slotted pages a sorted decreasingly by the tuple count.
-        Then the pages fewer tuples are merged into the fuller pages.
-        It can be the cases that the last page cannot be fully merged into any other slotted page.
-        Then this page has to be reordered so that the slots and data section start at the section beginnings.
-        This is necessary to avoid having an gap at the beginnng of the slot or data section.
+        To minimize tuple movement, the slotted pages are sorted decreasingly by the tuple count.
+        Then, we merge the pages with fewer tuples into the fuller pages.
+        If the last page cannot be fully merged into any other slotted page, then this page has to be reordered so that the slots and data section start at the beginning of the section.
+        This reordering is necessary to avoid having a gap at the beginning of the slot or data section.
 \end{enumerate}
-After the merging phase, all tuples are stored on the least possible amount of slotted pages.
-During the thread-local processing, it is likely that more slotted pages than necessary are created.
-This can lead to an significant higher memory consumption than the previous approaches.
+After the merging phase, this implementation stores all tuples on the least possible number of slotted pages.
+During the thread-local processing, this implementation will likely create more slotted pages than necessary.
+This unnecessary allocation of pages can lead to a significantly higher memory consumption than the previous approaches.
 \subsection{Implementation-independent Optimizations}
 We use the following optimizations to speed up our simulation of the shuffle operator.
 \subsubsection{Padded atomics and locks}
-All implementations, that use an array of partition locks, are affected by false sharing.
-False sharing is caused when an cache line stores two independent values and one \ac{CPU} core is modifying the first value.
-Then another CPU core wants to access the second value, which causes an cache miss.
+All implementations that use an array of partition locks are affected by false sharing.
+False sharing appears when a cache line stores two independent values and one \ac{CPU} core modifies the first value.
+Then, another CPU core wants to access the second value, which causes a cache miss.
 
-This performance degration can be avoided by storing each individual partition lock aligned to the L1-cache line boundary.
-This significantly reduces the amount of L1-cache misses, as the partition locks are frequently accessed.
+We avoid this performance degradation by storing each partition lock aligned to the L1-cache line boundary.
+This alignment significantly reduces the number of L1 cache misses, as partition locks are frequently accessed.
 
 \subsubsection{Minimal page-locking}
-When holding a partition lock, the tuple write-out onto a slotted page is an expensive operation.
-To reduce the lock-duration, we gather the necessary write-out information and prepare the next tuple insertion, and releasing the lock before the actual tuple write-out.
+When holding a partition lock, the tuple write-out onto a slotted page is expensive.
+We gather the necessary write-out information to reduce the lock duration, prepare the subsequent tuple insertion, and release the lock before the actual tuple write-out.
 
 \subsubsection{Two-step buffered slotted page write out}
-When writing out a batch of tuples onto a slotted page, we can process each tuple individually.
-First, we construct the slot for the tuple, and then we store the variable-size data in the data section at the end of page.
-Linux on an x86-64 machine, typically uses 4 KiB memory pages.
-As we use 5 MiB slotted pages, it is expected that the slot and data are on different memory pages.
+We can process each tuple individually when writing out a batch of tuples onto a slotted page.
+First, we construct the slot for the tuple, then store the variable-size data in the data section at the end of the page.
+Linux on an x86-64 machine typically uses 4 KiB memory pages.
+As we use 5 MiB slotted pages, the slot and data are expected to be on different memory pages.
 
-To reduce the amount simultanious accessed pages, we store our batches in a slot phase and a data phase.
-As we are now writing to either the slot or data section, we switch between memory pages less often.
-This is more friendly to the \ac{CPU} cache and the \ac{TLB}.
+We store our batches in slot and data phases to reduce the amount of simultaneously accessed pages.
+As we now write to the slot or data section, we switch between memory pages less often.
+This two-phase approach is more friendly to the \ac{CPU} cache and the \ac{TLB}.
 
 \section{On-Demand Partitioning} \label{section-On-Demand-Partitioning}
 \subsection{Overview}
