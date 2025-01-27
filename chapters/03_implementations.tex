@@ -206,7 +206,7 @@ In comparision to the Radix Page Manager, this page manager does not pre-allocat
 Instead it allocates the pages when needed.
 Furthermore, a thread can already receive its memory chunks, while other threads are still constructing their histograms.
 This allows this implementation to avoid materialization of all tuples.
-\subsection{Thread-Local Pages and Merge-based Page Manager}
+\subsection{Thread-Local Pages and Merge-based Page Manager}\label{subsection-Thread-Local-Pages-Page-Manager}
 A further step into reducing the necessaty of synchronsation are thread-local slotted pages.
 This slotted page management scheme can be split into two phases:
 \begin{enumerate}
@@ -355,6 +355,19 @@ In contrast, when using \acl{CMP} with exclusive partition ranges the amount of 
 This then leads to a decrease of processing efficiency when increasing the CPU cores.
 
 \section{Thread-Local Pages and Merge-based Partitioning}
+This implementation is very similar to the previous On-Demand implementation with \aclp{SMB} (see Section \ref{section-On-Demand-Partitioning}).
+Instead of using the On-Demand Page Manager, it heavily builds on the Thread-Local Pages and Merge-based Page Manager (see Section \ref{subsection-Thread-Local-Pages-Page-Manager}).
+Thus, this solution avoids sharing slotted pages between threads, but this can only be achieved with significant higher memory usage.
+
+Each thread partitiones the incoming tuples into thread-local slotted pages.
+With increasing tuple count and higher number of partitions, these thread-local slotted pages are less likely to be fully used, leading to an significant memory overhead.
+At the end of the tuple processing, these slotted pages are send to the shared Page Manager.
+
+When the Page Manager received all slotted pages, the slotted pages of each partition are sorted decreasingly by the number of tuples they store.
+Then each thread is assigned an exclusive partition range and the slotted pages of this partition range.
+All threads then merge the emptier pages into the fuller pages.
+All empty pages, which caused the additional memory overhead of this implementation, are then deallocated.
+Then each thread returns the merged slotted pages back to the Page Manager, which is the last step of the partitioning processs.
 
 \section{Complexity Analysis}
 \subsection{Time Complexity}
@@ -391,7 +404,6 @@ Similary as in the Time Complexity analysis, we have to store each tuple at leas
 Thus, we can set a lowerbound of $\Omega(n)$.
 Only, in the full materialization of Radix Partitioning, we create a copy of each tuple to store it on the page.
 Otherwise, we only move the tuples until it is stored in its final location on a slotted page.
-As the \aclp{SMB} are constant, we can upper bound it by a constant $c_{SMB}$.
+As the \aclp{SMB} sizes are constant, we can upper bound it by a constant $c_{SMB}$.
 With this information, we can define the upperbound for the Space Complexity to $O(2 * n + c_{SMB}) = O(n)$.
 It now follows that the Space Complexity of each implementation is $\Theta(n) = \Omega(n) \cap O(n) $ .
-\subsubsection{Memory Consumption}
