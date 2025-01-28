@@ -2,7 +2,7 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Implementations}\label{chapter:implementations}
-This section explains the shuffle-operator implementations and how to implement them efficiently.
+This section explains the shuffle operator implementations and how to implement them efficiently.
 As the shuffle operator simulation is based on fixed-size tuples, the explanations of the following implementations are based on fixed-size tuples as well.
 
 \section{Partitioning}
@@ -17,7 +17,7 @@ As the modulo calculation is quite expensive, we use the following partitioning 
   f(t) = t\textrm{.key}\ \&\ (\textrm{partitions - 1})
 \end{equation}
 Thus, we only need a substraction and a logical-and instruction to calculate in which partition a given tuple is placed.
-As the count of partitions remains constant during the shuffle-operator execution, we can extract the constant $\textrm{partitions - 1}$.
+As the count of partitions remains constant during the shuffle operator execution, we can extract the constant $\textrm{partitions - 1}$.
 Now, we only need a single logical-and instruction to calculate the partition.
 \section{Slotted Pages}
 Slotted pages store their information on fixed-size memory blocks that are split up into three sections: a fixed-size header, slots, and a data section.
@@ -133,19 +133,19 @@ Furthermore, we must edit the slotted page metadata using compare-and-exchange o
 
     \While{!header->tuple\_count.compare\_exchange\_strong(current\_tuple\_count, current\_tuple\_count + 1)} {
       \If {current\_tuple\_count >= get\_max\_tuples(page\_size)} {
-        return std::nullopt\;
+        return none\;
       }
     }
 
-    return \{page\_data.get(), page\_size, current\_tuple\_count\}\;
+    return \{page\_ptr, page\_size, current\_tuple\_count\}\;
   }
 \end{algorithm}
-In order to gather the information where we can write a tuple, we increment the tuple count using compare-and-exchange.
+In order to gather the information where we can write a tuple, we increment the tuple count using a compare-and-exchange operation.
 This previously stored index then acts as our location, where we store the tuple on the page.
 In Algorithm \ref{Lock-free-page-increment}, we also add a condition to stop attempting to further increase the count of tuples on the page if it is full.
 This condition ensures that threads move to the newly allocated page.
 Given the index, where the tuple is placed, we also append a pointer to the start of the page and the page size.
-This information ensures we can write the page without requiring any further information.
+This information ensures we can write the tuple on the page without requiring any further information.
 
 \begin{algorithm}[h]
   \SetKwFunction{Insert}{ insert\_tuple}
@@ -156,10 +156,10 @@ This information ensures we can write the page without requiring any further inf
   \textbf{function}\Insert{tuple, partition}{
 
     wi = current\_page[partition].load()->increment\_and\_fetch\_opt\_write\_info()\;
-    \While{wi == std::nullopt}{
+    \While{!wi}{
       wi = current\_page[partition].load()->increment\_and\_fetch\_opt\_write\_info()\;
     }
-    \If{wi.tuple\_index == LockFreeSlottedPage::get\_max\_tuples() - 1}{
+    \If{wi.tuple\_index == LockFreeSlottedPage::get\_max\_tuples(wi.page\_size) - 1}{
       add\_page(partition)\;
     }
     LockFreeSlottedPage::add\_tuple\_using\_index(wi, tuple)\; } \end{algorithm} Using the Algorithm \ref{Lock-free-page-increment}, we retrieve the information to write the tuple in Algorithm \ref{Lock-free-page-manager-insert-tuple}.
@@ -169,9 +169,9 @@ This last-tuple-check is necessary to create a unique condition when allocating 
 With that information, we can write the tuple onto the slotted page.
 \subsection{Histogram-based Page Managers}
 The following page managers use histograms to keep track of the count of tuples per partition within a given set of tuples.
-Similar to Section \ref{section:radix-partitioning}, this information can be used to assign memory areas on slotted pages.
+Similar to Radix Partitioning (see Section \ref{section:radix-partitioning}), this information can be used to assign memory areas on slotted pages.
 \subsubsection{Radix Page Manager} \label{subsubsection-Radix-Page-Manager}
-This page manager applies the concept of radix-partitioning on slotted pages.
+This page manager applies the concept of Radix Partitioning on slotted pages.
 It uses a three-step process:
 \begin{enumerate}
   \item Histogram retrieval: Each thread reads its assigned materialized tuple chunk and
@@ -193,7 +193,7 @@ It uses a three-step process:
         Otherwise, this write-out process does not rely on synchronization after the memory chunk distribution.
 \end{enumerate}
 After these three steps, each page can be sent to its receiver once the expected tuple count is reached.
-The last thread to increment the tuple count can do this.
+The last thread to atomically-increment the tuple count in the metadata section can do this.
 
 \subsubsection{Ad-hoc Radix ("Hybrid") Page Manager} \label{subsubsection-Ad-hoc-Radix-Page-Manager}
 The idea of the previous Radix Page Manager can be used to construct an approach where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
@@ -202,7 +202,7 @@ This page manager merges the three steps of the Radix Page Manager into one.
 A thread hands in its histogram and requests the memory chunks, where the tuples can be written.
 The page manager reads the histogram and processes each partition individually.
 We acquire the partition lock for each partition where at least a single tuple has to be stored.
-If there is any space left on a partition, it is used up and assigned to this thread.
+If there is any space left on a slotted page, it is used up and assigned to this thread.
 When the current page is full, we allocate a new page, and the page manager continues the assignment process.
 Each thread uses these exclusive memory locations to store its tuples.
 
@@ -302,9 +302,9 @@ Instead of materializing all tuples, we process all incoming tuples morsel-drive
 For a given morsel, we then create a histogram.
 The Ad-hoc Radix Page Manager (see Section \ref{subsubsection-Ad-hoc-Radix-Page-Manager}) uses this morsel-histogram to greedily assign this thread exclusive memory location to store the tuples.
 
-Like in the streaming Radix-Partitioning case above, we store the tuples on slotted pages without synchronization.
+Like in the streaming Radix Partitioning case above, we store the tuples on slotted pages without synchronization.
 The tuple count in the metadata section also requires synchronization in the form of an atomic tuple count.
-As the morsel size is smaller than the materialized tuples' assigned part, we must increase the tuple counter more often than using streaming Radix-Partitioning.
+As the morsel size is smaller than the materialized tuples' assigned part, we must increase the tuple counter more often than using streaming Radix Partitioning.
 
 \section{Collaborative Morsel Processing}\label{section-Collaborative-Morsel-Processing}
 \subsection{Overview}
@@ -327,15 +327,16 @@ However, we must process each tuple $p$ times, where $p$ is the number of partit
 As the incoming tuples only have to be read, they typically can reside in the L2 or L3 \ac{CPU} caches.
 
 Assuming uniform distribution across all partitions, the implementation efficiency decreases with increasing CPU core count.
-If we distribute the partitions into fair partition ranges, the likelihood of a given tuple being partitioned in a given partition range is:
+If we distribute the partitions ($p$) into fair partition ranges, the likelihood of a given tuple being partitioned in a given partition range is:
 \begin{equation}\label{equation-CMP-exclusive-partition-ranges}
-  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{p},  \quad \forall i
+  \Pr[X=\textrm{partition range}_i] = \frac{|\textrm{partition range}_i|}{p},  \quad \forall i
 \end{equation}
-As we want to increase the amount of partition ranges ($p$) with increasing core count, the likelihood that a thread processes a tuple for its assigned partition range decreases.
+As we want to increase the amount of partition ranges with increasing core count, the likelihood that a thread processes a tuple for its assigned partition range decreases.
+This is the case, as with increasing partition ranges the sizes of each partition range decreases.
 \subsection{Collaborative Morsel Processing using processing units}
 As we can see in the above \ac{CMP} with exclusive partition ranges implementation, exclusive partition ranges theoretical performance does not scale well.
 This implementation aims to reduce this impact by using processing units.
-A processing unit is a partition of $t$ threads that split the total partitions into $t$ fair, exclusive partition ranges.
+A processing unit is a partition of $t$ threads that splits the total partitions into $t$ fair, exclusive partition ranges.
 Again, within a processing unit, no partition ranges overlap.
 
 When we use multiple processing units, we have to synchronize the tuple write-out again.
@@ -345,12 +346,12 @@ This significantly reduces the contention on the synchronization mechanism of ea
 Furthermore, we must process each tuple only by a single processing unit.
 Assuming we fairly split up our $c$ \ac{CPU} cores into $pu$ processing units, then each processing unit will have around $pt\approx\frac{c}{pu}$ threads to process tuples.
 When we increase the count of CPU cores and processing units similarly, the amount of threads per processing unit remains constant.
-Thus, our likelihood of processing a tuple that belongs to the partition range of a randomly selected thread is:
+Thus, our likelihood of a randomly selected thread processing a tuple that belongs to its partition range is:
 \begin{equation}\label{equation-CMP-PU}
-  \Pr[X=\textrm{Partition Range}_i] \approx \frac{1}{pt},  \quad \forall i
+  \Pr[X=\textrm{partition range}_i] \approx \frac{|\textrm{partition range}_i|}{pt},  \quad \forall i
 \end{equation}
 
-When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units constant, the processing efficiency remains constant.
+When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units constant, the processing efficiency per thread remains constant.
 In contrast, when using \acl{CMP} with exclusive partition ranges, the amount of exclusive partition ranges increases with the CPU core count.
 This increase in exclusive partition ranges decreases the processing efficiency when increasing the CPU cores.
 
@@ -385,16 +386,16 @@ As the theoretical Time Complexity analysis above hides the constant $c = \textr
         Furthermore, if the implementation requires full materialization, we materialize all tuples before processing them.
         This means that the tuple access frequency is two or three, depending on whether materialization is necessary.
 
-  \item Collaborative Morsel Processing: In the more straightforward implementation with exclusive partition ranges, we have to process each tuple at least $p$ times, with $p$ denoting the count of exclusive partition ranges.
+  \item Collaborative Morsel Processing: In the more straightforward implementation with exclusive partition ranges, we have to process each tuple at least $pr$ times, with $pr$ denoting the count of exclusive partition ranges.
         As we use \acp{SMB}, we access each tuple twice when processing it.
-        Thus, the tuple access frequency is $2p$ .
+        Thus, the tuple access frequency is $2pr$.
 
         When using processing units, we only have to process at most $\textrm{max}(pt_i), \; \forall i$ times.
         $pt_i$ is the total number of threads (and count of exclusive partition ranges) of processing unit $i$.
         Similarly, it follows that the tuple access frequency is upper bounded by $2 * \textrm{max}(pt_i), \; \forall i$ as we use \acp{SMB} as well.
 
   \item Thread-Local Pages and Merge-based Partitioning: In this implementation, we also use \acp{SMB}.
-        Similar to the On-Demand Partitioning, we must at least process the tuples two times.
+        Similar to the On-Demand Partitioning, we must at least store the tuples two times.
         However, as we are using thread-local slotted pages, we may have to merge a slotted page into another page.
         A tuple can only be merged into another page or moved to a different location once.
         Thus, our tuple access frequency is three.
@@ -404,6 +405,6 @@ Similarly, as in the Time Complexity analysis, we store each tuple at least once
 Thus, we can set a lower bound of $\Omega(n)$.
 Only in the full materialization of Radix Partitioning do we create a copy of each tuple to store it on the page.
 Otherwise, we only move the tuples until we store them in their final location on a slotted page.
-As the \aclp{SMB} sizes are constant, we can upper bound it by a constant $c_{SMB}$.
+As the \acfp{SMB} sizes are constant, we can upper bound it by a constant $c_{SMB}$.
 With this information, we can define the upper bound for the Space Complexity to $O(2 * n + c_{SMB}) = O(n)$.
-It now follows that the Space Complexity of each implementation is $\Theta(n) = \Omega(n) \cap O(n) $ .
+It follows that the Space Complexity of each implementation is $\Theta(n) = \Omega(n) \cap O(n) $ .
