@@ -2,19 +2,38 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Evaluation}\label{chapter:evaluation}
+In this chapter we explain our benchmarks and evaluate the implementations of the shuffle operator.
+Furthermore, we discuss best-case upper bounds to put our solutions performance in perspective.
+\section{Benchmarking Setup}
+The following benchmarks were executed on a 125 GiB (DDR4-2666) x86-64 machine with an Intel(R) Core(TM) i9-7900X CPU.
+The code was compiled using gcc version 13.3.0 under Ubuntu 24.04.1 LTS running the 6.5 linux kernel.
+We used the following gcc flags to compile the code: \texttt{-O3 -march=native -flto}
 
-\section{Experimental Setup}
+\section{Benchmarks} We simulate the real world usage of the shuffle operator using a parallel tuple generation and shuffle, followed by a final tuple count check.
 
-\paragraph{Hardware}
-\paragraph{Software}
+\subsection{Benchmark Overview}
+\subsubsection{Tuple Generation}
+This phase uses a Mersenne Twister pseudo-random 64-bit number generator, which is initialized using a true-random seed.
+This generator creates batches of tuples, using the total size of the requested tuple batch and without generating each tuple individually.
 
-\section{Tuple Generation}
+We allocate a new memory block for each tuple batch, which the implementions then process and store onto slotted pages.
+In the real world, the incoming tuples are often stored on slotted pages.
+When this is the case, each tuple batch is in a new memory location as well.
 
-\section{Tuple Write Benchmark}
+This phase uses the exact same tuple generation process for each implementation, just the size of the generated batches varies for the implementations.
+\subsubsection{Tuple Shuffle}
+In this step, we simulate the real world usage of the shuffle operator.
+The operator receives an input stream of tuple batches and creates parttioned output stream in form of slotted pages.
 
-\section{Shuffle Benchmark}
+To keep the comparision between the implementations fair, each implementation must create an partitioned output stream with the following properties: For each partition, all slotted pages must be full except for the last one and each slotted page must store its tuples as single block starting from the the first slot.
+These two conditions assure that each implementation produces the same result, just the ordering of the tuples across the slotted pages can differ.
+\subsubsection{Final tuple count check}
+After the implementation has processed all tuples, we scan over all slotted pages and sum up the tuple count.
+This way we assure that all tuples are written in their final location.
 
-\subsection{Memory Consumption}
-\subsection{Performance}
+\subsection{Tuple Write Benchmark}
+%TODO: Optional
+\subsection{Shuffle Operator Benchmark}
+\subsubsection{Memory Consumption}
 
 \section{Comparison with Stream Processing Systems}
