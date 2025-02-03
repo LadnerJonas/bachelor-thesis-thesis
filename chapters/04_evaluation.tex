@@ -7,7 +7,7 @@ Furthermore, we discuss best-case upper bounds to put our solutions performance 
 \section{Benchmarking Setup}
 The following benchmarks were executed on a 125 GiB (DDR4-2666) x86-64 machine with an Intel(R) Core(TM) i9-7900X CPU.
 The code was compiled using gcc version 13.3.0 under Ubuntu 24.04.1 LTS running the 6.5 linux kernel.
-We used the following gcc flags to compile the code: \texttt{-O3 -march=native -flto}
+We used the following gcc flags to compile the code: \texttt{-O2 -march=native -flto}
 
 \section{Benchmarks} We simulate the real world usage of the shuffle operator using a parallel tuple generation and shuffle, followed by a final tuple count check.
 
@@ -20,7 +20,7 @@ We allocate a new memory block for each tuple batch, which the implementions the
 In the real world, the incoming tuples are often stored on slotted pages.
 When this is the case, each tuple batch is in a new memory location as well.
 
-This phase uses the exact same tuple generation process for each implementation, just the size of the generated batches varies for the implementations.
+Each implementation uses the exact same tuple generation process, just the size of the generated batches varies.
 \subsubsection{Tuple Shuffle}
 In this step, we simulate the real world usage of the shuffle operator.
 The operator receives an input stream of tuple batches and creates parttioned output stream in form of slotted pages.
@@ -31,9 +31,104 @@ These two conditions assure that each implementation produces the same result, j
 After the implementation has processed all tuples, we scan over all slotted pages and sum up the tuple count.
 This way we assure that all tuples are written in their final location.
 
-\subsection{Tuple Write Benchmark}
+%\subsection{Tuple Write Benchmark}
 %TODO: Optional
 \subsection{Shuffle Operator Benchmark}
+The following benchmarks were executed on the above system.
+During the execution, the linux perf counters were recorded and these mesurements are the fundament of the following evaluation.
+
+Furthermore, we recorded two theoretical baselines for the shuffle implementations, which help to put the results into perspective.
+The first baseline simulates tuple writes onto unsyncronized slotted pages.
+In comparision, the second baselines uses shared and thus syncronized slotted pages.
+
+To achieve an best-case upper bound performance, both baseline implementations use \acfp{SMB}.
+The baselines always fully fill the \ac{SMB} and then store it on the $n$ partition.
+After that batched write out, the \ac{SMB} is reset and the next tuples will be stored in the $n+1$ partition.
+As our tuple generator creates uniformly-distributed keys accross all partitions, these baselines act as best-case upper bounds, which can rarely be reached.
+
+\subsubsection{Performance with few Partitions}
+The following figures illustrate the processed tuples per second of each implementation as the thread count increases.
+As the benchmarking machine has only ten hardware threads, it is expected that beyond these ten hardware threads, only minimal performance improvements can be achieved.
+The theoretical baselines perform very similarly with a few threads, but as the thread count increases, the synchronization causes contention and thus the performance gain per thread decreases.
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions2.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions4.pgf}}
+  \end{subfigure}
+  \caption[Shuffle Benchmark Plots for Tuple of 16B with 2 and 4 Partitions]{Benchmark Plots for Tuple of 16B with 2 and 4 Partitions}
+  \label{plot-shuffle-16B-2-4}
+\end{figure}
+In figure \ref{plot-shuffle-16B-2-4}, we can see that the LocalPagesAndMerge-implementation processes by far the most tuples per second.
+It even exceeds the synchronized best-case base line, as the LocalPagesAndMerge-approach avoids having to synchronize during write out at the cost of a small sort-and-merge phase at the end.
+In the four partition plot, we can already see that the performance of the LocalPagesAndMerge-implementation decreases in comparision to the other implementations.
+This is the case, as the thread-local pages causes a lot of heap-allocations and with a increasing number of partitions, the sort-and-merge phase cost increases as well.
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions8.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions16.pgf}}
+  \end{subfigure}
+  \caption[Shuffle Benchmark Plots for Tuple of 16B with 8 and 16 Partitions]{Benchmark Plots for Tuple of 16B with 8 and 16 Partitions}
+  \label{plot-shuffle-16B-8-16}
+\end{figure}
+
+\subsubsection{Performance with many Partitions}
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple4-Partitions32.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple4-Partitions1024.pgf}}
+  \end{subfigure}
+  \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
+  \label{plot-shuffle-4B-32-1024}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions32.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions1024.pgf}}
+  \end{subfigure}
+  \caption[Shuffle Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions}
+  \label{plot-shuffle-16B-32-1024}
+\end{figure}
+
+c
+
+\begin{figure}[h]
+  \centering
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple100-Partitions32.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{.49\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple100-Partitions1024.pgf}}
+  \end{subfigure}
+  \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
+  \label{plot-shuffle-100B-32-1024}
+\end{figure}
+d
+
 \subsubsection{Memory Consumption}
 
 \section{Comparison with Stream Processing Systems}

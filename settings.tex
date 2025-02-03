@@ -27,8 +27,12 @@
 \usepackage{booktabs}
 \usepackage[final]{microtype}
 \usepackage{caption}
+\usepackage{subcaption}
 \usepackage[printonlyused]{acronym}
 \usepackage{ifthen}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\providecommand{\mathdefault}[1]{#1}
 
 \usepackage[ruled]{algorithm2e}
 \DontPrintSemicolon
@@ -39,22 +43,22 @@
 % for fachschaft_print.pdf
 \makeatletter
 \if@twoside
-	\typeout{TUM-Dev LaTeX-Thesis-Template: twoside}
+  \typeout{TUM-Dev LaTeX-Thesis-Template: twoside}
 \else
-	\typeout{TUM-Dev LaTeX-Thesis-Template: oneside}
+  \typeout{TUM-Dev LaTeX-Thesis-Template: oneside}
 \fi
 \makeatother
 
 \addto\extrasamerican{
-	\def\lstnumberautorefname{Line}
-	\def\chapterautorefname{Chapter}
-	\def\sectionautorefname{Section}
-	\def\subsectionautorefname{Subsection}
-	\def\subsubsectionautorefname{Subsubsection}
+  \def\lstnumberautorefname{Line}
+  \def\chapterautorefname{Chapter}
+  \def\sectionautorefname{Section}
+  \def\subsectionautorefname{Subsection}
+  \def\subsubsectionautorefname{Subsubsection}
 }
 
 \addto\extrasngerman{
-	\def\lstnumberautorefname{Zeile}
+  \def\lstnumberautorefname{Zeile}
 }
 
 % Themes
