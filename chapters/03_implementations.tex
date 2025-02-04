@@ -1,7 +1,7 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
-\chapter{Implementations}\label{chapter:implementations}
+\chapter{Implementations}\label{chapter:implementations}\acresetall
 This chapter explains the shuffle operator implementations and how to implement them efficiently.
 As the shuffle operator simulation is based on fixed-size tuples, the explanations of the following implementations are based on fixed-size tuples as well.
 
@@ -316,7 +316,7 @@ A thread will only write out a tuple if the partitioning function maps it to a p
 Nevertheless, we still have to partition all tuples to their correct partition.
 Because of that, we have to process each tuple so that it can end up in any partition.
 Thus, we must process each tuple by a group of threads, where the union of their partition ranges covers all possible partitions.
-\subsection{Collaborative Morsel Processing with exclusive partition ranges}
+\subsection{Collaborative Morsel Processing with exclusive partition ranges}\label{section-CMP-with_exclusive-partition-ranges}
 This implementation constructs the partition ranges so that it fulfills two conditions:
 \begin{enumerate}
   \item Any partition range does not overlap with any other partition range.

@@ -1,7 +1,7 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
-\chapter{Evaluation}\label{chapter:evaluation}
+\chapter{Evaluation}\label{chapter:evaluation}\acresetall
 In this chapter we explain our benchmarks and evaluate the implementations of the shuffle operator.
 Furthermore, we discuss best-case upper bounds to put our solutions performance in perspective.
 \section{Benchmarking Setup}
@@ -69,6 +69,23 @@ It even exceeds the synchronized best-case base line, as the LocalPagesAndMerge-
 In the four partition plot, we can already see that the performance of the LocalPagesAndMerge-implementation decreases in comparision to the other implementations.
 This is the case, as the thread-local pages causes a lot of heap-allocations and with a increasing number of partitions, the sort-and-merge phase cost increases as well.
 
+After the LocalPagesAndMerge-implementation, there is a group of three \acf{SMB}-based implementations: Smb, SmbBatched and SmbLockFreeBatched.
+These three implementations struggle to scale with increasing thread count in the two partition case, as having to write all the tuples on two shared slotted pages causes a lot of contention.
+But it can already be seen that with a increasing number of partition, these three implementation are able to scale with increasing thread count.
+
+The next group contains the following three implementations: \acf{CMP} with Processing Units, Hybrid and Radix.
+The leader of this group is the Hybrid implementation, that especially in the two partition case scales better than the other two implementations.
+The Hybrid implementation can process more tuples there, as it does not need to fully materialize all tuples.
+Furthermore, the slotted pages are allocated when needed and each thread can request memory locations without having to wait for other threads to hand in their histogram.
+The \ac{CMP} with Processing Units implementation performs better with increasing threads, as each processing unit contains one thread, that only generates new tuples without partitioning them.
+All the other threads of this processing unit then can process these generated tuples.
+
+The remaining \ac{CMP}, OnDemand and SmbLockFree implementation do not scale with increasing threads.
+As explained in the Section \ref{section-CMP-with_exclusive-partition-ranges}, the \ac{CMP} with exlusive partition ranges effiency decreases per thread with an increase in the number of threads.
+The OnDemand approach does not use a \ac{SMB}, and has to immidiatly write each tuple to its final slotted page.
+As all slotted pages are shared, this causes a lot of contention.
+Similarly, the non-batched lock-free \ac{SMB} implementation uses two busy-waiting loops, that aim to update the tuple-count of a slotted page using an compare-and-exchange operation.
+Thus, this approach has a significant higher number of branch-misses (1-3x), instructions (1-4x) and L1-cache-misses (1-2x) in comparision with the other \ac{SMB} implementations.
 \begin{figure}[h]
   \centering
   \begin{subfigure}{.49\textwidth}
@@ -83,6 +100,15 @@ This is the case, as the thread-local pages causes a lot of heap-allocations and
   \label{plot-shuffle-16B-8-16}
 \end{figure}
 
+In Figure \ref{plot-shuffle-16B-8-16}, that uses 8 and 16 partitions, we can see that the performance gap between the LocalPagesAndMerge- and the other implementations shrinks with increasing partitions.
+Also, the previous groups of implementations with similar performance characteriscs remain.
+
+The LocalPagesAndMerge implementation does not significantly increase its throughput, as with a higher number of partitions, there also must be more thread-local slotted pages per thread.
+This causes more heap allocations and the sort-and-merge phase is getting more expensive.
+Furthermore, the \ac{LLC}-cache-misses and \ac{TLB}-misses increase as more memory location are accessed.
+
+The previous group of SMB implementations (Smb, SmbBatched and SmbBatchedLockFree) can now process very similar amounts of tuples per second as the LocalPagesAndMerge approach.
+The synchronization contention decreases with increasing partitions, as the load on locks or atomics now is spread up between more slotted pages, and thus across more locks or atomics.
 \subsubsection{Performance with many Partitions}
 \begin{figure}[h]
   \centering
