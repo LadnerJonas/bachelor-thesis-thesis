@@ -53,9 +53,17 @@ After that batched write out, the \ac{SMB} is reset and the next tuples will be 
 After a write to the last partition, we start from the first partition again.
 As our tuple generator creates uniformly-distributed keys accross all partitions, these baselines act as best-case upper bounds, which can rarely be reached.
 
+In the following benchmarks we are using constant size \acp{SMB} per implementation indepentent of the used thread count.
+For example, when a implementation uses a \ac{SMB} of 2 MiB and 8 threads, a single thread would use $250 \textrm{\;KiB}$ for its total \ac{SMB}.
+\begin{equation}
+  \frac{\textrm{SMB Size}} {\textrm{Thread count}} = \frac{2 \textrm{\;MiB}}{8} = 250 \textrm{\;KiB}
+\end{equation}
+As the \ac{SMB} size now varies between different thread configurations on the same implementation, occasionally a small performance jump can be seen the following benchmark plots.
+This performance jump appears, when the \ac{SMB} size matches the size of an L1/L2 cache line.
+
 \subsubsection{Performance with few Partitions}
 The following figures illustrate the processed tuples per second of each implementation as the thread count increases.
-As the benchmarking machine has only ten hardware threads, it is expected that beyond these ten hardware threads, only minimal performance improvements can be achieved.
+As the benchmarking machine has only ten physical cores, it is expected that beyond these ten physical cores, only minimal performance improvements can be achieved.
 The theoretical baselines perform very similarly with a few threads, but as the thread count increases, the synchronization causes contention and thus the performance gain per thread decreases.
 
 \begin{figure}[h]
@@ -131,6 +139,11 @@ Like in the previous benchmark, the SmbLockFree approach still uses the two busy
 With increasing number of partitions, these atomic tuple-count values less frequently requested by multiple threads.
 Thus, with increasing partitions, this implementation starts to improve its scaling.
 \subsubsection{Performance with many Partitions}
+After comparing the different implementations on 2 - 16 partitions, we now evaluate the performance on 32 and 1024 partitions.
+This high number of partitions creates new challenges to the problem, as memory consumption starts to play a big role in the performance.
+For example, when using 1024 partition and our 5 MiB slotted page size, the initial memory consumption is already at 5 GiB.
+When thread-local slotted pages are used, this initialization of a slotted page per partititon and thread already takes up 100 GiB on our 20 logical processors (10 physical cores + SMT) machine.
+
 \begin{figure}[h]
   \centering
   \begin{subfigure}{.49\textwidth}
@@ -159,8 +172,6 @@ Thus, with increasing partitions, this implementation starts to improve its scal
   \label{plot-shuffle-16B-32-1024}
 \end{figure}
 
-c
-
 \begin{figure}[h]
   \centering
   \begin{subfigure}{.49\textwidth}
@@ -174,7 +185,6 @@ c
   \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
   \label{plot-shuffle-100B-32-1024}
 \end{figure}
-d
 
 \subsubsection{Memory Consumption}
 
