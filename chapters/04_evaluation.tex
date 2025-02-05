@@ -37,6 +37,12 @@ This way we assure that all tuples are written in their final location.
 The following benchmarks were executed on the above system.
 During the execution, the linux perf counters were recorded and these mesurements are the fundament of the following evaluation.
 
+We use three different tuples sizes (4B, 16B, 100B) to simulate the shuffle operator usage.
+As we use first 4 Byte of a given tuples as our partitioning key, we also store those 4 Bytes in the slot.
+The remaining bytes are stored as variable-sized data and thus in the data section of the slotted page.
+In the 4 Byte case, this storage approach does only use the slot section, as there are no bytes besides the key to be stored.
+In contrast, both the 16B and 100B tuples have to be split into a 4 Byte key part stored in the slot, and the remaining 12B and 96B are stored in the data section.
+
 Furthermore, we recorded two theoretical baselines for the shuffle implementations, which help to put the results into perspective.
 The first baseline simulates tuple writes onto unsyncronized slotted pages.
 In comparision, the second baselines uses shared and thus syncronized slotted pages.
@@ -44,6 +50,7 @@ In comparision, the second baselines uses shared and thus syncronized slotted pa
 To achieve an best-case upper bound performance, both baseline implementations use \acfp{SMB}.
 The baselines always fully fill the \ac{SMB} and then store it on the $n$ partition.
 After that batched write out, the \ac{SMB} is reset and the next tuples will be stored in the $n+1$ partition.
+After a write to the last partition, we start from the first partition again.
 As our tuple generator creates uniformly-distributed keys accross all partitions, these baselines act as best-case upper bounds, which can rarely be reached.
 
 \subsubsection{Performance with few Partitions}
@@ -109,6 +116,20 @@ Furthermore, the \ac{LLC}-cache-misses and \ac{TLB}-misses increase as more memo
 
 The previous group of SMB implementations (Smb, SmbBatched and SmbBatchedLockFree) can now process very similar amounts of tuples per second as the LocalPagesAndMerge approach.
 The synchronization contention decreases with increasing partitions, as the load on locks or atomics now is spread up between more slotted pages, and thus across more locks or atomics.
+
+The next group of implementation contains the following four implementations: CmpProcessingUnits, Hybrid, Radix and SmbLockFree.
+The leading implementation is the Radix approach, which even performs better than the Hybrid implementation.
+In comparision, the Radix implementations has higher L1/LLC-cache-misses, but has less branch- and TLB-misses.
+This leads to a overall better CPU-usage with less time idling.
+Overall all implementations of this group have significant higher L1/LLC-cache misses than the previous group.
+
+The last group of implementation, which do not scale well, contain yet again: CmpExclusivePartitionRanges, OnDemand and SmbLockFree.
+Similar to the previous Figure \ref{plot-shuffle-16B-2-4}, increasing the number of partitions does not solve the decreasing efficiency per added thread issue of the CmpExclusivePartitionRanges implementation.
+Also, the OnDemand approach struggles even more to write out the tuples, as with increasing partitions, the amout of slotted pages also increases.
+This causes even more L1/LLC-cache-misses, as the \ac{CPU} cannot hold all these memory location in caches.
+Like in the previous benchmark, the SmbLockFree approach still uses the two busy waiting loops to atomically get the write out information for a given tuple batch.
+With increasing number of partitions, these atomic tuple-count values less frequently requested by multiple threads.
+Thus, with increasing partitions, this implementation starts to improve its scaling.
 \subsubsection{Performance with many Partitions}
 \begin{figure}[h]
   \centering
