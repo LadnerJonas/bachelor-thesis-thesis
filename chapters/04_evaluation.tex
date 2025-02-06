@@ -233,6 +233,38 @@ The OnDemand struggles to scale, as it does not use any form of buffering, which
   \label{plot-shuffle-100B-32-1024}
 \end{figure}
 
+In figure \ref{plot-shuffle-100B-32-1024}, we use 100 byte tuple instead of 16 byte.
+Due to the significant bigger tuples, the cache lines and the \acp{SMB} can hold less tuples.
+This makes the write out process more expensive and cache-misses more likely.
+
+Unlike in the previous benchmarks, the LocalPagesAndMerge approach does not process the most tuples in the 32 partition case.
+This time the SmbBatched variant can outperform all other implementations.
+Nonetheless, the LocalPagesAndMerge scales still very well with increasing threads in the 32 partition case, but has up to 2x more \ac{TLB}-misses than the SmbBatched variant.
+Like in the previous benchmarks the LocalPagesAndMerge approach struggles to perform when using 1024 partitions.
+As each newly added thread requires the allocation of 1024 slotted pages (5 GiB), and the slotted page merge phase becomes more expensive, we observe that performance worsens as more threads are added.
+
+The next group, which scales very well with increasing threads, are the four \ac{SMB} implementations: Smb, SmbBatched, SmbLockFree and SmbLockFreeBatched.
+Overall, the all four implementations have similar perf messurements, just the SmbBatched has slightly less \ac{LLC}-misses and branch-misses.
+
+Hybrid and CmpProcessingUnits form the next group, as they scale with increasing threads in both partition cases, but are significant less performant than the previous \ac{SMB} group.
+The Hybrid approach causes 3x more \ac{LLC}-misses, where as the CmpProcessingUnits has up to 20x more branch-misses, than the SmbBatched variant.
+These two significantly increased performance counters are causing a substantial performance decrease.
+
+The next group consists again of two members: OnDemand and Radix.
+Both approaches are unable to scale with more threads in the 32 partition case, but perform resonable when using 1024 partitions.
+The OnDemand approach performs substantially better in the 1024 partition case, as the tuple write out is more expensive in the 100 byte tuple case.
+This more expensive write out and the fact that we are using 1024 partitions, reduces the contention on the shared slotted page locks significantly.
+As we only hold locks during the fetching of the tuple index, they more expensive tuple write slows down the write enough so that the locks are rarely accessed at the same time.
+We argue that the performance of the Radix implementation does increase due to a similar load balancing effect.
+In the Radix implementation, every thread has to use its histogram to request write out locations.
+To make the implementation more scalable, we use a lock for each partition.
+We have to hold the lock during the allocation of a slotted page, as it will be frequently the case that the next thread wants to request write out location on this newly-allocated page.
+By increasing the partitions, these locks are load balanced as each thread starts at a different start partition and then requests a memory location for each partition.
+
+Like in the previous benchmarks the CmpExclusivePartitionRanges again is unable to scale up, as the size of the exlusive parition ranges decreases with increasing thread count.
+This means that for a given thread, the likelyhood that the next tuple must be placed in a partition of its assigned exclusive partition range, decreases.
+This causes huge numbers of branch-misses and as all threads have to process all tuples, this implementation struggles to scale.
+
 \subsubsection{Memory Consumption}
 
 \section{Comparison with Stream Processing Systems}
