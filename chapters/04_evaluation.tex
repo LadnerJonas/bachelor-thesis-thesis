@@ -45,8 +45,7 @@ In contrast, both the 16B and 100B tuples have to be split into a 4 byte key par
 
 Furthermore, we recorded two theoretical baselines for the shuffle implementations, which help to put the results into perspective.
 The first baseline simulates tuple writes onto unsyncronized slotted pages.
-In comparision, the second baselines uses shared and thus syncronized slotted pages.
-
+In contrast, the second baselines uses shared and thus syncronized slotted pages.
 To achieve an best-case upper bound performance, both baseline implementations use \acfp{SMB}.
 The baselines always fully fill the \ac{SMB} and then store it on the $n$ partition.
 After that batched write out, the \ac{SMB} is reset and the next tuples will be stored in the $n+1$ partition.
@@ -75,6 +74,10 @@ The theoretical baselines perform very similarly with a few threads, but as the 
   \begin{subfigure}{.49\textwidth}
     \centering
     \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions4.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/legend.pgf}}
   \end{subfigure}
   \caption[Shuffle Benchmark Plots for Tuple of 16B with 2 and 4 Partitions]{Benchmark Plots for Tuple of 16B with 2 and 4 Partitions}
   \label{plot-shuffle-16B-2-4}
@@ -110,6 +113,10 @@ Thus, this approach has a significant higher number of branch-misses (1-3x), ins
   \begin{subfigure}{.49\textwidth}
     \centering
     \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions16.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/legend.pgf}}
   \end{subfigure}
   \caption[Shuffle Benchmark Plots for Tuple of 16B with 8 and 16 Partitions]{Benchmark Plots for Tuple of 16B with 8 and 16 Partitions}
   \label{plot-shuffle-16B-8-16}
@@ -154,6 +161,10 @@ When thread-local slotted pages are used, this initialization of a slotted page 
     \centering
     \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple4-Partitions1024.pgf}}
   \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/legend.pgf}}
+  \end{subfigure}
   \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
   \label{plot-shuffle-4B-32-1024}
 \end{figure}
@@ -189,6 +200,10 @@ It is caused by the busy-waiting atomic accesses on the tuple-count variable of 
   \begin{subfigure}{.49\textwidth}
     \centering
     \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple16-Partitions1024.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/legend.pgf}}
   \end{subfigure}
   \caption[Shuffle Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions}
   \label{plot-shuffle-16B-32-1024}
@@ -228,6 +243,10 @@ The OnDemand struggles to scale, as it does not use any form of buffering, which
   \begin{subfigure}{.49\textwidth}
     \centering
     \resizebox{\linewidth}{!}{\input{figures/evaluation/Tuples_per_Second-Tuple100-Partitions1024.pgf}}
+  \end{subfigure}
+  \begin{subfigure}{\textwidth}
+    \centering
+    \resizebox{\linewidth}{!}{\input{figures/evaluation/legend.pgf}}
   \end{subfigure}
   \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
   \label{plot-shuffle-100B-32-1024}
