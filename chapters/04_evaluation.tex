@@ -6,8 +6,8 @@ In this chapter, we explain our benchmarks and evaluate the implementation of th
 Furthermore, we discuss best-case upper bounds to put our solution's performance in perspective.
 \section{Benchmarking Setup}\label{section-benchmarking-setup}
 We executed the following benchmarks on a 125 GiB (DDR4-2666) x86-64 machine with an Intel(R) Core(TM) i9-7900X CPU.
-We compiled the code using gcc version 13.3.0 under Ubuntu 24.04.1 LTS running the 6.5 Linux kernel.
-We compile the code with the gcc flags \texttt{-O2 -march=native -flto}.
+The machine runs Ubuntu 24.04.1 LTS with the Linux 6.5 kernel.
+The code was compiled using GCC 13.3.0 with the optimization flags \texttt{-O2 -march=native -flto}.
 
 \section{Benchmarks}
 We simulate the real-world usage of the shuffle operator using a parallel tuple generation and shuffle, followed by a final tuple count check.
@@ -369,8 +369,38 @@ This causes vast numbers of branch misses, and as all threads have to process al
 %   \caption{Peak Memory Usage for Tuple 16B, 32 Partitions, and 67.2M Tuples}
 %   \label{fig:peak-memory-16-32-67Mio}
 % \end{figure}
+We used the heap profiler Massif within Valgrind 3.24 to messure the heap memory consumption of our implementations.
+In our memory benchmark, we partition 67.2 Mio.
+tuples of 16 bytes ($\approx$ 1 GiB) into 32 partitions.
+As the tuple keys are distributed uniformly, the tuples are stored on ten 5 MiB slotted pages per partition.
+To highlight the impact of the benchmark parameters on the heap usage, we executed the benchmark using 40 threads.
+
 \begin{figure}[h]
   \centering
   \resizebox{\linewidth}{!}{\input{figures/evaluation/memory_plot-16B-P32-Th40.pgf}}
-\end{figure}
+  \caption{Peak Heap Usage when using 32 Partitions, 40 Threads and 67.2 Mio.
+    Tuples} \label{plot-heap-16B-P32-Th40} \end{figure} In figure \ref{plot-heap-16B-P32-Th40} we visualized the peak heap usage of each implementation.
+The partitioning of 67.2 Mio.
+tuples requires 10 slotted pages per partition.
+These 10 slotted pages per partition sum up to around 1.46 GiB of heap memory, which each implementation must use and acts as an lower-bound in the plot.
+To better visiualize the peak memory consumption of each implementation, we subtract the needed memory for the minimum number of slotted pages, and write the addititonally used heap memory above the bar of each implementation.
+
+All implementations except LocalPagesAndMerge and Radix, only rely on a few, small heap allocations (vectors, SMBs).
+The OnDemand does use the least amount of heap, as it does not use any \ac{SMB}.
+In the group of implementations, that only use few heap allocations, the two \ac{CMP} approaches use the most heap.
+They both use \acp{SMB} and their producer-consumer approach uses vectors.
+
+The Radix implementation needs to fully materilize the 1 GiB of tuple data, before it can write out tuples to the slotted pages.
+This materialization allocation directly scales with the total size of the incoming tuples.
+The Hybrid approach avoids this by only materializing small chunks and directly assigning them to threads.
+
+The LocalPagesAndMerge approach uses the most heap memory, due to the thread-local slotted pages.
+As explained in the space complexity analysis in \ref{section-space-complexity}, we want to emphasize that this additional heap memory consumption does not scale when increasing the incoming tuple count.
+Instead, it is caused by the last, not fully used thread-local page of each partition.
+These are the pages that have to be merged, so that we pass the minimal number of slotted pages to the next operator.
+As we can have at most one not fully used thread-local slotted page per partition and thread, the amount of slotted pages can be upperbounded by a constant:
+\begin{equation}
+  c_\textrm{LPAM} \leq (\textrm{Partition count}) * (\textrm{Thread count}) * (\textrm{Size of a slotted page})
+\end{equation}
+This constant $c_\textrm{LPAM}$ has to be considered when using the LocalPagesAndMerge approach, as it can be serveral GiB like seen in the figure \ref{plot-heap-16B-P32-Th40}.
 \section{Comparison with Stream Processing Systems}
