@@ -409,18 +409,18 @@ As the \acfp{SMB} sizes are constant, we can upper bound it by a constant:
   c_\textrm{SMB} = (\textrm{Size of a single SMB}) * (\textrm{Thread count})
 \end{equation}
 Similarly, the LocalPagesAndMerge uses thread-local slotted pages.
-When we finished processing the incoming stream of tuples, the sort-and-merge phase starts.
-All slotted pages of a partition, that are not full, have to be merged.
-During the merge process, some slotted pages can be merged into other slotted pages, and can be deallocated.
-These deallocated slotted pages cause an unnecessary memory consumption, that can be upper bound by a constant:
+The sort-and-merge phase starts when we finish processing the incoming stream of tuples.
+All slotted pages of a partition that are not full have to be merged.
+During the merge process, some slotted pages can be merged into other slotted pages and deallocated.
+These deallocated slotted pages cause an unnecessary memory consumption that can be upper bounded by a constant:
 \begin{equation}
   c_\textrm{LPAM} \leq (\textrm{Partition count}) * (\textrm{Thread count}) * (\textrm{Size of a slotted page})
 \end{equation}
-This constant $c_\textrm{LPAM}$ is independent of the input tuple size, but in real world cases, it can be several GiB big.
-When a distributed database system is used, the total size of incoming tuples is signficiant higher than the partition and thread count.
+This constant $c_\textrm{LPAM}$ is independent of the input tuple size, but it can be several GiB big in real-world cases.
+When a distributed database system is used, the total size of incoming tuples is significantly higher than the partition and thread count.
 Thus, we continue our space complexity analysis with the assumption: $n \gg c_\textrm{LPAM} $
 
-In the full materialization of Radix Partitioning do we create a copy of each tuple to store it on the page.
+In the full materialization of Radix Partitioning, we create a copy of each tuple to store it on the page.
 Otherwise, we only move the tuples until we store them in their final location on a slotted page.
 With this information, we can define the upper bound for the Space Complexity to $O(2 * n + c_{SMB} + c_\textrm{LPAM}) = O(n)$.
 It follows that the Space Complexity of each implementation is within $\Theta(n) = \Omega(n) \cap O(n) $ .
