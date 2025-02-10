@@ -379,7 +379,8 @@ To highlight the impact of the benchmark parameters on the heap usage, we execut
   \centering
   \resizebox{\linewidth}{!}{\input{figures/evaluation/memory_plot-16B-P32-Th40.pgf}}
   \caption{Peak Heap Usage when using 32 Partitions, 40 Threads and 67.2 Mio.
-    Tuples} \label{plot-heap-16B-P32-Th40} \end{figure} In figure \ref{plot-heap-16B-P32-Th40}, we visualized the peak heap usage of each implementation.
+    16B Tuples (1 GiB)} \label{plot-heap-16B-P32-Th40} \end{figure}
+In figure \ref{plot-heap-16B-P32-Th40}, we visualized the peak heap usage of each implementation.
 The partitioning of 67.2 Mio.
 tuples requires 10 slotted pages per partition.
 These 10 slotted pages per partition sum up to around 1.46 GiB of heap memory, which each implementation must use and acts as a lower bound in the plot.
@@ -404,3 +405,15 @@ Since we can have at most one not fully used thread-local slotted page per parti
 
 This constant $c_\textrm{LPAM}$ must be considered when using the LocalPagesAndMerge approach, as it can be several GiB, as seen in figure \ref{plot-heap-16B-P32-Th40}.
 \section{Comparison with Stream Processing Systems}
+We compare our shuffle operator with keyBy operator of the batch and streaming processing engine Apache Flink\cite{apache-flink}.
+This keyBy operator partitiones an incoming data stream into disjoint partitions based on a key.
+
+Similar to our implementations, we generate tuples on demand for a data stream.
+On this data stream, we apply the keyBy operator by using the tuple key and our partition function (see Section \ref{sec-partitioning}).
+Then we sum of the count of records per partition.
+\begin{figure}[h]
+  \centering
+  \resizebox{.75\linewidth}{!}{\input{figures/evaluation/apache-flink-comparison.pgf}}
+  \caption{Tuples per Second Comparision when using 1024 Partitions}
+  \label{plot-apache-flink-comparison}
+\end{figure}
