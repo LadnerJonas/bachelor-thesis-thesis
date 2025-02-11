@@ -1,10 +1,35 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
-\chapter{Related work}\label{chapter:related_work}\acresetall
+\chapter{Related Work}\label{chapter:related_work}\acresetall
+This chapter presents relevant algorithms and approaches, positioning them within the context of our problem domain.
 
-\section{Radix Partitioning}\label{section:radix-partitioning}
+\section{Partitioned Joins}\label{sec-rw-partitioning-joins}
+Partitioned joins are a widely used class of hash-based join algorithms~\parencite{joins-real-system, hash-joins-hardware-tuning, equi-join-comparison}, frequently employed in modern database systems~\parencite{umbra, hyper, hyper-compilation}.
 
-\section{Partitioned Joins}
+A basic partitioned join algorithm consists of a partitioning and a join execution phase.
+In the first phase, the algorithm partitions the build and probe sides using a hash key derived from the join condition.
+The subsequent join execution phase uses the property that only tuples within the same partition must be compared, improving locality and reducing unnecessary checks.
+The final output consists of the union of each partition’s results.
 
-\section{Software Managed Buffers}
+As the underlying hardware significantly impacts the performance of partitioned join algorithms, recent publications have proposed hardware-conscious implementations~\parencite{hash-joins-hardware-tuning, radix-partitioning-case, main-memory-partitioning, data-partitioning-in-memory-systems}.
+In the following chapter (see Chapter \ref{chapter:implementations}), we incorporate hardware-conscious approaches from these papers and tailor them to the requirements of the streaming shuffle operator.
+
+\section{Radix Partitioning}\label{sec-rw-radix-partitioning}
+Radix partitioning is a fundamental technique to efficiently partition a large dataset~\parencite{radix-partitioning, radix-partitioning-case, data-partitioning-in-memory-systems, partitioned-parallel-radix-sort}.
+
+Its naive, fixed-size tuple version uses three phases: histogram construction, offset calculation, and a write-out phase~\parencite{radix-partitioning-case}.
+The first pass constructs a frequency map, the so-called histogram, that stores the number of tuples for each partition.
+Using this histogram, the algorithm computes a prefix-sum array to determine partition offsets.
+In the last phase, it allocates a memory block large enough to store all tuples.
+The histogram and the offset prefix-sum provide enough information to write each tuple to its final destination in the newly allocated block.
+
+By grouping writes into a contiguous memory region, radix partitioning improves cache locality and reduces write amplification.
+Our approach extends this concept by applying histogram-based partitioning dynamically to streaming tuple workloads (see Section \ref{section-histogram-based-partitioning}).
+
+\section{Software Managed Buffers}\label{sec-rw-smb}
+Database systems frequently use Software Managed Buffers in the size of cache lines to improve throughput and avoid \ac{TLB} thrashing~\parencite{db-buffer-management, smb-join, smb-partitioning-sort}.
+SMBs reduce \ac{TLB} misses by buffering small batches of tuples before writing them out, reducing the number of memory page accesses.
+Prior work has shown that using cache-line-sized buffers significantly reduces TLB pressure and improves throughput~\parencite{what-every-programmer-should-know-about-memory}.
+
+In our shuffle operator, all implementations, except the naive OnDemand approach, leverage SMBs to optimize memory access and improve overall throughput.

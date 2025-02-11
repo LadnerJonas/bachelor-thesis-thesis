@@ -169,7 +169,7 @@ This last-tuple-check is necessary to create a unique condition when allocating 
 With that information, we can write the tuple onto the slotted page.
 \subsection{Histogram-based Page Managers}
 The following page managers use histograms to keep track of the count of tuples per partition within a given set of tuples.
-Similar to Radix Partitioning (see Section \ref{section:radix-partitioning}), this information can be used to assign memory areas on slotted pages.
+Similar to Radix Partitioning (see Section \ref{sec-rw-radix-partitioning}), this information can be used to assign memory areas on slotted pages.
 \subsubsection{Radix Page Manager} \label{subsubsection-Radix-Page-Manager}
 This page manager applies the concept of Radix Partitioning on slotted pages.
 It uses a three-step process:
@@ -272,9 +272,9 @@ This temporal storage brings another benefit.
 We can now use the batch insertion features from the page managers.
 Batch insertions are more \ac{CPU}-cache and \ac{TLB} friendly, as we switch our modified memory locations less often.
 
-\section{Histogram-based Partitioning}
+\section{Histogram-based Partitioning}\label{section-histogram-based-partitioning}
 \subsection{Overview}
-Like Radix Partitioning (see Section \ref{section:radix-partitioning}), we use a histogram to assign threads memory location to store the tuples.
+Like Radix Partitioning (see Section \ref{sec-rw-radix-partitioning}), we use a histogram to assign threads memory location to store the tuples.
 A histogram in the context of Radix Partitioning stores information like the count of tuples and their total size per partition.
 We use this information to assign each thread the memory blocks it needs.
 
