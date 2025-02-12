@@ -7,6 +7,7 @@ As the shuffle operator simulation is based on fixed-size tuples, the explanatio
 
 \section{Partitioning}\label{sec-partitioning}
 We generate our tuples using a pseudo-random number generator.
+Since the tuple key is uniformly distributed, each partition receives an approximately equal number of tuples, ensuring balanced workload distribution.
 To distribute the tuples into partitions, we use the following function:
 \begin{equation}
   f(t) = t\textrm{.key}\ \%\ \textrm{partitions}
@@ -23,51 +24,53 @@ Now, we only need a single logical-and instruction to calculate the partition.
 Slotted pages store their information on fixed-size memory blocks that are split up into three sections: a fixed-size header, slots, and a data section.
 We are using slotted pages with a total size of 5 MiB per page.
 \begin{figure}[h]
-  \begin{tikzpicture}
-    % Page Outline
-    \foreach \x in {0, 14}{
-        \draw (\x,0) -- (\x,1.95);
-        \draw (\x-0.15,1.85) -- (\x+0.15,2.05);
-        \draw (\x,3) -- (\x,2.05);
-        \draw (\x-0.15,1.95) -- (\x+0.15,2.15);
-      }
 
-    % Header Section
-    \fill[gray!20] (0,3) rectangle (5,3.5);
-    \node[anchor=center] at (2.5,3.25) {\textbf{header}};
-    \draw (0,3) rectangle (5,3.5);
+  \resizebox{\linewidth}{!}{
+    \begin{tikzpicture}
+      % Page Outline
+      \foreach \x in {0, 14}{
+          \draw (\x,0) -- (\x,1.95);
+          \draw (\x-0.15,1.85) -- (\x+0.15,2.05);
+          \draw (\x,3) -- (\x,2.05);
+          \draw (\x-0.15,1.95) -- (\x+0.15,2.15);
+        }
 
-    % Slots Section
-    \fill[blue!20] (5,3) rectangle (14,3.5);
-    \fill[blue!20] (0,2.5) rectangle (6,3);
+      % Header Section
+      \fill[gray!20] (0,3) rectangle (5,3.5);
+      \node[anchor=center] at (2.5,3.25) {\textbf{header}};
+      \draw (0,3) rectangle (5,3.5);
 
-    % Slots (Fixed-size entries)
-    \foreach \x in {5, 8, 11} {
-        \draw (\x,3) rectangle (\x+3,3.5);
-        \node[anchor=center] at (\x+1.5,3.25) {Slot \pgfmathparse{(\x-2)/3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
-      }
-    \foreach \x in {0, 3} {
-        \draw (\x,2.5) rectangle (\x+3,3);
-        \node[anchor=center] at (\x+1.5,2.75) {Slot \pgfmathparse{(\x)/3 + 4} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
-      }
+      % Slots Section
+      \fill[blue!20] (5,3) rectangle (14,3.5);
+      \fill[blue!20] (0,2.5) rectangle (6,3);
 
-    \node[anchor=center] at (6+1.5,2.75) {Slots grow $\rightarrow$};
+      % Slots (Fixed-size entries)
+      \foreach \x in {5, 8, 11} {
+          \draw (\x,3) rectangle (\x+3,3.5);
+          \node[anchor=center] at (\x+1.5,3.25) {Slot \pgfmathparse{(\x-2)/3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+        }
+      \foreach \x in {0, 3} {
+          \draw (\x,2.5) rectangle (\x+3,3);
+          \node[anchor=center] at (\x+1.5,2.75) {Slot \pgfmathparse{(\x)/3 + 4} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+        }
 
-    % Data Section
-    \fill[red!20] (7,0) rectangle (14,1.5);
-    \fill[red!20] (0,0) rectangle (14,1);
+      \node[anchor=center] at (6+1.5,2.75) {Slots grow $\rightarrow$};
 
-    \foreach \x in {14, 7} {
-        \draw (\x,0) rectangle (\x-7,0.5);
-        \node[anchor=center] at (\x-3.5,0.25) {Data \pgfmathparse{2-(\x)/7 + 1} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
-        \draw (\x,0.5) rectangle (\x-7,1);
-        \node[anchor=center] at (\x-3.5,0.75) {Data \pgfmathparse{2-(\x)/7 + 3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
-      }
-    \draw (14,1) rectangle (7,1.5);
-    \node[anchor=center] at (14-3.5,1.25) {Data \pgfmathparse{2-(14)/7 + 5} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
-    \node[anchor=center] at (7-1.5,1.25) {$\leftarrow$ Data grow};
+      % Data Section
+      \fill[red!20] (7,0) rectangle (14,1.5);
+      \fill[red!20] (0,0) rectangle (14,1);
 
-  \end{tikzpicture}
+      \foreach \x in {14, 7} {
+          \draw (\x,0) rectangle (\x-7,0.5);
+          \node[anchor=center] at (\x-3.5,0.25) {Data \pgfmathparse{2-(\x)/7 + 1} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+          \draw (\x,0.5) rectangle (\x-7,1);
+          \node[anchor=center] at (\x-3.5,0.75) {Data \pgfmathparse{2-(\x)/7 + 3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+        }
+      \draw (14,1) rectangle (7,1.5);
+      \node[anchor=center] at (14-3.5,1.25) {Data \pgfmathparse{2-(14)/7 + 5} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+      \node[anchor=center] at (7-1.5,1.25) {$\leftarrow$ Data grow};
+
+    \end{tikzpicture}}
   \centering
   \caption{Slotted Page grow visualization}
 \end{figure}
@@ -83,21 +86,26 @@ In contrast, when dealing with variable-size tuples, slot index and data offset 
 \section{Slotted Page Managers}\label{section-slotted-page-managers}
 As some implementations share the same tuple write-out strategy, we propose the used write-out strategies here and reference them in the following explanations of the concrete implementations.
 
+\begin{table}[h]
+  \centering
+  \begin{tabular}{|p{0.19\textwidth}|p{0.40\textwidth}|p{0.30\textwidth}|}
+    \hline
+    \textbf{Variant}             & \textbf{Tuple Writing}                                                                 & \textbf{Synchronization}                                                                         \\
+    \hline
+    Lock-based                   & Append to current page; allocate new page if full and append tuple                     & Per-partition lock                                                                               \\\hline
+    Lock-free                    & CAS-based index fetch; allocate new page if full after write; insert tuple using index & Per-slotted page tuple index atomic                                                              \\\hline
+    Radix-based                  & Pre-allocate pages using global histogram, write independently                         & Synchronisation required when creating global histogram, during page allocation and distribution \\\hline
+    Ad-hoc Radix  ("Hybrid")     & Pre-allocate pages using thread-local histogram, write independently                   & Synchronisation required during page allocation and distribution                                 \\\hline
+    Thread-Local Pages and Merge & Write to thread local pages; merge non-full pages                                      & Synchronization during local page collection and during partition-range to merge assignment      \\\hline
+  \end{tabular}
+  \caption{Overview of the Slotted Page Managers}
+\end{table}
+
 We initialize each partition with an empty slotted page to simplify the implementations.
 Initializing each partition with a slotted page significantly reduces the complexity of the page manager implementations.
 
 \subsection{Lock-based Page Manager}
 We use a single lock and a vector for each partition to store the slotted pages.
-% \begin{algorithm}[h]
-%   \caption{Lock-based Page Manager insert\_tuple Algorithm}\label{Lock-based-page-manager-insert-tuple}
-%   \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
-%   \Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
-
-%   \SetKwFunction{Insert}{ insert\_tuple}
-
-%   \textbf{function}\Insert{tuple, partition}{
-
-%     Acquire lock on \texttt{partition\_locks[partition]}\; \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; } Release lock\; } \end{algorithm}
 \begin{algorithm}[h]
   \caption{Lock-based Page Manager insert\_tuple Algorithm}
   \label{Lock-based-page-manager-insert-tuple}
@@ -123,16 +131,6 @@ If the current page is full, we just allocate and append a new slotted page to t
 
 \subsubsection*{Tuple insertion in batches}
 Similarly, we can further optimize the write-out by using tuple-batches.
-% \begin{algorithm}[h]
-%   \caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}\label{Lock-based-page-manager-insert-tuple-batch}
-%   \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
-%   \Input{\texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
-
-%   \SetKwFunction{Insert}{ insert\_tuple\_batch}
-
-%   \textbf{function}\Insert{tuples, partition}{
-
-%     Acquire lock on \texttt{partition\_locks[partition]}\; \For{tuple : tuples}{ \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; }} Release lock\; } \end{algorithm}
 \begin{algorithm}[h]
   \caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}
   \label{Lock-based-page-manager-insert-tuple-batch}
