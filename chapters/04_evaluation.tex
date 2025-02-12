@@ -31,8 +31,6 @@ These conditions ensure that all implementations produce the same result, with p
 After the implementation has processed all tuples, we scan over all slotted pages and sum up the tuple count.
 This way, we ensure that all tuples are written in their final location.
 
-%\subsection{Tuple Write Benchmark}
-%TODO: Optional
 \subsection{Shuffle Operator Benchmark}
 We executed the following benchmarks on the system described in Section \ref{section-benchmarking-setup}.
 During execution, we recorded Linux perf counters, and these measurements form the foundation of the following evaluation.
@@ -290,85 +288,6 @@ This means that for a given thread, the likelihood that the next tuple must be p
 This causes vast numbers of branch misses, and as all threads have to process all tuples, this implementation struggles to scale.
 
 \subsubsection{Memory Consumption}
-% \begin{table}[h]
-%   \centering
-%   \scriptsize
-%   \renewcommand{\arraystretch}{1.2} % Increases row height for better readability
-%   \resizebox{\textwidth}{!}{
-%     \begin{tabular}{|p{3cm}|>{\raggedleft\arraybackslash}p{3.5cm}|>{\raggedleft\arraybackslash}p{3cm}|>{\raggedleft\arraybackslash}p{1.5cm}|>{\raggedleft\arraybackslash}p{3cm}|>{\raggedleft\arraybackslash}p{1.5cm}|>{\raggedleft\arraybackslash}p{1.5cm}|>{\raggedleft\arraybackslash}p{1.5cm}|}
-%       \hline
-%       \textbf{Metric}                                       & \textbf{CmpExclPartition\-Ranges} & \textbf{CmpProcessing\-Units} & \textbf{Hybrid} & \textbf{LocalPages\-AndMerge} & \textbf{OnDemand} & \textbf{Radix} & \textbf{Smb*} \\
-%       \hline
-%       \textbf{Total heap allocation [GiB]}                  & 1,572                             & 2,270                         & 1,568           & 2,508                         & 1,558             & 2,564          & 1,563         \\
-%       \hline
-%       \textbf{Heap allocations without slotted pages [GiB]} & 0.117                             & 0.814                         & 0.113           & 1.053                         & 0.103             & 1.109          & 0.108         \\
-%       \hline
-%       \textbf{Overhead (\%)}                                & 8.02\%                            & 56.0\%                        & 7.75\%          & 72.34\%                       & 7.06\%            & 76.20\%        & 7.41\%        \\
-%       \hline
-%     \end{tabular}
-%   }
-%   \caption{Peak Memory Usage for Tuple 16B, 32 Partitions, and 67.2M Tuples}
-%   \label{tab-peak-memory-16-32-67Mio}
-% \end{table}
-% \begin{figure}[h]
-%   \centering
-%   \begin{tikzpicture}
-%     \begin{axis}[
-%         ybar stacked,
-%         symbolic x coords={CmpExclPartitionRanges, CmpProcessingUnits, Hybrid, Local\-Pages\-And\-Merge, OnDemand, Radix, Smb*},
-%         xtick=data,
-%         xticklabel style={rotate=45, anchor=east},
-%         ymin=0, ymax=2800,
-%         ylabel={Memory (MiB)},
-%         legend style={at={(0.5,-0.15)}, anchor=north, legend columns=-1},
-%         width=\textwidth,
-%         height=7cm,
-%         bar width=12pt,
-%         enlarge x limits=0.15,
-%         nodes near coords,
-%         every node near coord/.append style={font=\scriptsize}
-%       ]
-%       % Blue part (Remaining heap allocation)
-%       \addplot[color=blue, fill=blue!60] coordinates {
-%           (CmpExclPartitionRanges,1455)
-%           (CmpProcessingUnits,1456)
-%           (Hybrid,1455)
-%           (Local\-Pages\-And\-Merge,1455)
-%           (OnDemand,1455)
-%           (Radix,1455)
-%           (Smb*,1455)
-%         };
-%       % Red part (Heap allocation without slotted pages)
-%       \addplot[color=red, fill=red!60] coordinates {
-%           (CmpExclPartitionRanges,117)
-%           (CmpProcessingUnits,814)
-%           (Hybrid,113)
-%           (Local\-Pages\-And\-Merge,1053)
-%           (OnDemand,103)
-%           (Radix,1109)
-%           (Smb*,108)
-%         };
-%       % \addplot[black, thick, dashed] {1455};
-%       % Baseline at 1,456 MiB
-%       % \addplot[black, thick, dashed] coordinates {(CmpExclPartitionRanges,1456) (Smb*,1456)};
-
-%       % \addplot[black, thick, dashed] {1456};
-%       % \addplot[black, thick, dashed] coordinates {
-%       %     (CmpExclPartitionRanges,1456)
-%       %     (CmpProcessingUnits,1456)
-%       %     (Hybrid,1456)
-%       %     (Local\-Pages\-And\-Merge,1456)
-%       %     (OnDemand,1456)
-%       %     (Radix,1456)
-%       %     (Smb*,1456)
-%       %   };
-
-%       \legend{Heap Allocation without Slotted Pages, Total Heap Allocation, Required Slotted Pages (1,456 MiB)}
-%     \end{axis}
-%   \end{tikzpicture}
-%   \caption{Peak Memory Usage for Tuple 16B, 32 Partitions, and 67.2M Tuples}
-%   \label{fig:peak-memory-16-32-67Mio}
-% \end{figure}
 We used the heap profiler Massif within Valgrind 3.24 to measure the heap memory consumption of our implementations.
 In our memory benchmark, we partition 67.2 Mio.
 tuples of 16 bytes ($\approx$ 1 GiB) into 32 partitions.
