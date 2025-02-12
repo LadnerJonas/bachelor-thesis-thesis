@@ -88,34 +88,73 @@ Initializing each partition with a slotted page significantly reduces the comple
 
 \subsection{Lock-based Page Manager}
 We use a single lock and a vector for each partition to store the slotted pages.
+% \begin{algorithm}[h]
+%   \caption{Lock-based Page Manager insert\_tuple Algorithm}\label{Lock-based-page-manager-insert-tuple}
+%   \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
+%   \Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
+
+%   \SetKwFunction{Insert}{ insert\_tuple}
+
+%   \textbf{function}\Insert{tuple, partition}{
+
+%     Acquire lock on \texttt{partition\_locks[partition]}\; \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; } Release lock\; } \end{algorithm}
 \begin{algorithm}[h]
-  \caption{Lock-based Page Manager insert\_tuple Algorithm}\label{Lock-based-page-manager-insert-tuple}
-  \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
-  \Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
-  \Output{Tuple inserted into the appropriate slotted page of the specified partition.}
+  \caption{Lock-based Page Manager insert\_tuple Algorithm}
+  \label{Lock-based-page-manager-insert-tuple}
+  \SetKwInOut{Input}{input}
 
-  \SetKwFunction{Insert}{ insert\_tuple}
+  \Input{ \texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
 
-  \textbf{function}\Insert{tuple, partition}{
+  \SetKwFunction{Insert}{insert\_tuple}
 
-    Acquire lock on \texttt{partition\_locks[partition]}\; \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; } Release lock\; } \end{algorithm} As can be seen in Algorithm \ref{Lock-based-page-manager-insert-tuple}, the lock-based insertion process is straightforward.
+  \textbf{function} \Insert{tuple, partition}:
+
+  \textbf{with} partition\_locks[partition]:
+  \tcp{Acquire lock}
+  \If{\textbf{not} pages[partition][-1].add\_tuple(tuple)}{
+    add\_page(partition) \;
+    pages[partition][-1].add\_tuple(tuple) \;
+  }
+\end{algorithm}
+As can be seen in Algorithm \ref{Lock-based-page-manager-insert-tuple}, the lock-based insertion process is straightforward.
 The insertion on a given slotted page, can only fail if the page is full.
 This can easily be checked by reading the tuple count in the metadata section of the slotted page.
 If the current page is full, we just allocate and append a new slotted page to the page vector of this partition.
 
 \subsubsection*{Tuple insertion in batches}
 Similarly, we can further optimize the write-out by using tuple-batches.
+% \begin{algorithm}[h]
+%   \caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}\label{Lock-based-page-manager-insert-tuple-batch}
+%   \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
+%   \Input{\texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
+
+%   \SetKwFunction{Insert}{ insert\_tuple\_batch}
+
+%   \textbf{function}\Insert{tuples, partition}{
+
+%     Acquire lock on \texttt{partition\_locks[partition]}\; \For{tuple : tuples}{ \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; }} Release lock\; } \end{algorithm}
 \begin{algorithm}[h]
-  \caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}\label{Lock-based-page-manager-insert-tuple-batch}
-  \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
-  \Input{\texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
-  \Output{Tuples inserted into one or more slotted pages of the specified partition.}
+  \caption{Lock-based Page Manager insert\_tuple\_batch Algorithm}
+  \label{Lock-based-page-manager-insert-tuple-batch}
+  \SetKwInOut{Input}{input}
 
-  \SetKwFunction{Insert}{ insert\_tuple\_batch}
+  \Input{ \texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
 
-  \textbf{function}\Insert{tuples, partition}{
+  \SetKwFunction{Insert}{insert\_tuple\_batch}
 
-    Acquire lock on \texttt{partition\_locks[partition]}\; \For{tuple : tuples}{ \eIf{pages[partition].back().add\_tuple(tuple)}{ // Tuple added successfully\; }{ add\_page(partition)\; pages[partition].back().add\_tuple(tuple)\; }} Release lock\; } \end{algorithm} In Algorithm \ref{Lock-based-page-manager-insert-tuple-batch}, we reuse the tuple insertion logic from Algorithm \ref{Lock-based-page-manager-insert-tuple} but acquire the partition lock only once for the entire insertion process.
+  \textbf{function} \Insert{tuples, partition}:
+
+  \textbf{with} partition\_locks[partition]:
+  \tcp{Acquire lock}
+  \For{tuple \textbf{in} tuples}{
+    \If{\textbf{not} pages[partition][-1].add\_tuple(tuple)}{
+      add\_page(partition) \;
+      pages[partition][-1].add\_tuple(tuple) \;
+    }
+  }
+\end{algorithm}
+
+In Algorithm \ref{Lock-based-page-manager-insert-tuple-batch}, we reuse the tuple insertion logic from Algorithm \ref{Lock-based-page-manager-insert-tuple} but acquire the partition lock only once for the entire insertion process.
 Since acquiring and releasing the lock is expensive, this optimization significantly improves performance in multi-threaded scenarios.
 
 \subsection{Lock-free Page Manager}
@@ -125,20 +164,21 @@ A pointer-stable data structure is necessary to ensure threads can work simultan
 Furthermore, we must edit the slotted page metadata using compare-and-exchange operations to avoid losing writes from other threads.
 
 \begin{algorithm}[h]
-  \caption{Lock-free Slotted Page increment\_and\_fetch\_opt\_write\_info Algorithm}\label{Lock-free-page-increment}
-  \SetKwFunction{Increment}{ increment\_and\_fetch\_opt\_write\_info}
-  \textbf{function}\Increment{}{
+  \caption{Lock-free Slotted Page increment\_and\_fetch\_opt\_write\_info Algorithm}
+  \label{Lock-free-page-increment}
+  \SetKwFunction{Increment}{increment\_and\_fetch\_opt\_write\_info}
 
-    current\_tuple\_count = header->tuple\_count.load();
+  \textbf{function} \Increment{}:
 
-    \While{!header->tuple\_count.compare\_exchange\_strong(current\_tuple\_count, current\_tuple\_count + 1)} {
-      \If {current\_tuple\_count >= get\_max\_tuples(page\_size)} {
-        return none\;
-      }
+  current\_tuple\_count = header->tuple\_count.load()
+
+  \While{\textbf{not} header->tuple\_count.compare\_exchange\_weak(current\_tuple\_count, current\_tuple\_count + 1)}{
+    \If{current\_tuple\_count >= get\_max\_tuples(page\_size)}{
+      \Return none
     }
-
-    return \{page\_ptr, page\_size, current\_tuple\_count\}\;
   }
+
+  \Return \{page\_ptr, page\_size, current\_tuple\_count\}
 \end{algorithm}
 In order to gather the information where we can write a tuple, we increment the tuple count using a compare-and-exchange operation.
 This previously stored index then acts as our location, where we store the tuple on the page.
@@ -148,21 +188,29 @@ Given the index, where the tuple is placed, we also append a pointer to the star
 This information ensures we can write the tuple on the page without requiring any further information.
 
 \begin{algorithm}[h]
-  \SetKwFunction{Insert}{ insert\_tuple}
-  \caption{Lock-free Page Manager insert\_tuple Algorithm}\label{Lock-free-page-manager-insert-tuple}
-  \SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
+  \caption{Lock-free Page Manager insert\_tuple Algorithm}
+  \label{Lock-free-page-manager-insert-tuple}
+  \SetKwInOut{Input}{input}
+  \SetKwInOut{Output}{output}
+
   \Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
   \Output{Tuple inserted into the appropriate slotted page of the specified partition.}
-  \textbf{function}\Insert{tuple, partition}{
 
-    wi = current\_page[partition].load()->increment\_and\_fetch\_opt\_write\_info()\;
-    \While{!wi}{
-      wi = current\_page[partition].load()->increment\_and\_fetch\_opt\_write\_info()\;
-    }
-    \If{wi.tuple\_index == LockFreeSlottedPage::get\_max\_tuples(wi.page\_size) - 1}{
-      add\_page(partition)\;
-    }
-    LockFreeSlottedPage::add\_tuple\_using\_index(wi, tuple)\; } \end{algorithm} Using the Algorithm \ref{Lock-free-page-increment}, we retrieve the information to write the tuple in Algorithm \ref{Lock-free-page-manager-insert-tuple}.
+  \SetKwFunction{Insert}{insert\_tuple}
+
+  \textbf{function} \Insert{tuple, partition}:
+
+  wi = current\_page[partition].load().increment\_and\_fetch\_opt\_write\_info()
+
+  \While{\textbf{not} wi}{
+    wi = current\_page[partition].load().increment\_and\_fetch\_opt\_write\_info()
+  }
+
+  \If{wi.tuple\_index == LockFreeSlottedPage.get\_max\_tuples(wi.page\_size) - 1}{
+    add\_page(partition)
+  }
+
+  LockFreeSlottedPage.add\_tuple\_using\_index(wi, tuple) \end{algorithm} Using the Algorithm \ref{Lock-free-page-increment}, we retrieve the information to write the tuple in Algorithm \ref{Lock-free-page-manager-insert-tuple}.
 We read from an atomically stored pointer to our current page until we receive an index on a slotted page.
 If we write the last tuple on the page, we add a new page to this partition.
 This last-tuple-check is necessary to create a unique condition when allocating a new page.
