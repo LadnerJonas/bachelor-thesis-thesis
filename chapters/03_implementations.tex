@@ -447,7 +447,6 @@ To set an upper bound for the time complexity, we first want to analyze the tupl
 \end{itemize}
 Using the tuple access metric of each implementation, we can upper bound the tuple access frequency using this constant: $c_\textrm{TAF} = \textrm{max}(3, t+1)$, with $t$ denoting the thread count.
 As we only apply $O(1)$ operations on each tuple access, we can upper bound time complexity of the implementations using this constant $O(c_\textrm{TAF} * n) = O(n)$.
-%As we process each tuple at most $c_\textrm{TAF} = \textrm{max}(3, t+1)$, with $t$ denoting the thread count, times and only apply $O(1)$ operations on each tuple, we can upper bound the implementations time complexity using this constant $O(c_\textrm{TAF} * n) = O(n)$.
 Combining both lower- and upper bounds, our proposed implementations run in $\Theta(n) = \Omega(n) \cap O(n) $.
 \subsection{Space Complexity}\label{section-space-complexity}
 Similarly, as in the Time Complexity analysis, we store each tuple at least once.
