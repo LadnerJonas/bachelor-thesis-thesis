@@ -2,7 +2,19 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Conclusion}\label{chapter:conclusion}\acresetall
+Our benchmarking results indicate that the LocalPagesAndMerge implementation achieves the highest throughput for small partition counts ($\le$32).
+However, as the number of partitions increases, its performance deteriorates due to the rising amount of \ac{TLB} misses and the computational overhead of the sort-and-merge phase.
+In contrast, the \ac{SMB} implementations (Smb, SmbBatched, SmbLockfree, and SmbLockFreeBatched) initially suffer from contention but improve significantly as the partition count exceeds the physical core count, eventually surpassing LocalPagesAndMerge in throughput.
 
-\section{Conclusion}
-
+The Hybrid and Radix implementations perform well, but the Radix approach requires materializing the incoming tuple stream.
+The Hybrid implementation mitigates full materialization while achieving comparable throughput.
+Our approach, CmpWithProcessingUnits, seeks to reduce the contention through selective write-outs.
+However, the associated overhead significantly reduces throughput across most benchmarks.
+Finally, the CmpExclusivePartitionRanges and OnDemand approaches fail to scale with increasing thread counts, resulting in performance comparable to or worse than single-threaded execution.
 \section{Future Work}
+Future research should explore adaptive partitioning schemes and other optimization techniques to reduce the \ac{TLB} misses and memory load observed in the LocalPagesAndMerge approach.
+Additionally, decreasing contention in SMB-based implementations could further enhance their scalability.
+Similarly, optimizing the CmpWithProcessingUnits approach by developing more efficient selective write-out mechanisms may improve its overall performance.
+
+Furthermore, recent studies suggest that the performance of database operators in microbenchmarks can deviate significantly from their behavior in real-world workloads~\parencite{joins-real-system}.
+To ensure the practical applicability of our methods, future work should integrate them into a streaming processing engine and evaluate their performance on systems with a larger number of physical cores.
