@@ -1,12 +1,11 @@
 \chapter{\abstractname}
 
-%TODO: Abstract
-Modern streaming database systems rely on efficient data partitioning to achieve scalability and high performance across processing nodes. Partitioned data shuffling is a crucial operation, as it is used to prepare and distribute data for further processing on distributed systems.
+Modern streaming database systems rely on efficient data partitioning to achieve scalability and high performance across processing nodes.
+Partitioned data shuffling is a crucial operation, as it is used to prepare and distribute data for further processing on distributed systems.
 
-This thesis purposes and evaluates various partitioning implementations by simulating real-world usage of the shuffle operator. The implementations process incoming tuple batches and partition them into output buckets, which are based on slotted pages and can be passed to subsequent operators. The evaluation of the implementations is based on their performance, scalability and memory consumption.
+This thesis purposes and evaluates various partitioning implementations by simulating real-world usage of the shuffle operator.
+The implementations process incoming tuple batches and partition them into output buckets, which are based on slotted pages and can be passed to subsequent operators.
+The evaluation of the implementations is based on their performance, scalability and memory consumption.
 
-The results demonstrate that using a lock- and \ac{SMB}-based approach yields the best overall performance, offering both efficiency and ease of implementation. Notably, the proposed locking mechanism minimizes the duration of holding a lock, ensuring minimal contention and contributing to the approach's superior performance.
-
-{\color{red}TODO: quantify results \\ "As a result we implement a ... that is ?X faster than ..."
-
-At the end: "Our approach uses software managed buffers, locking, ..." }
+We evaluate 10 shuffle operator implementations and identify two highly efficient approaches: (1) thread-local slotted pages with merging, optimal for fewer than 32 partitions, and (2) a group of \ac{SMB} implementations excelling beyond 16 partitions.
+Throughput and scalability analyses show that the thread-local slotted page approach achieves up to 2.1x higher performance for low partition counts, while the \ac{SMB} group scales efficiently, outperforming other methods by 2.4x for high partition counts.
