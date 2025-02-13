@@ -89,66 +89,53 @@
 }
 # Partitioned Joins
 @inproceedings{joins-real-system,
-  author       = {Maximilian Bandle and
-                  Jana Giceva and
-                  Thomas Neumann},
-  title        = {To Partition, or Not to Partition, That is the Join Question in a
-                  Real System},
+  title        = {To Partition, or Not to Partition, That is the Join Question in a Real System},
+  author       = {Maximilian Bandle and Jana Giceva and Thomas Neumann},
+  year         = 2021,
   booktitle    = {{SIGMOD} Conference},
-  pages        = {168--180},
   publisher    = {{ACM}},
-  year         = {2021}
+  pages        = {168--180}
 }
 @inproceedings{hash-joins-hardware-tuning,
-  author       = {Cagri Balkesen and
-                  Jens Teubner and
-                  Gustavo Alonso and
-                  M. Tamer {\"{O}}zsu},
-  title        = {Main-memory hash joins on multi-core CPUs: Tuning to the underlying
-                  hardware},
+  title        = {Main-memory hash joins on multi-core CPUs: Tuning to the underlying hardware},
+  author       = {Cagri Balkesen and Jens Teubner and Gustavo Alonso and M. Tamer {\"{O}}zsu},
+  year         = 2013,
   booktitle    = {{ICDE}},
-  pages        = {362--373},
   publisher    = {{IEEE} Computer Society},
-  year         = {2013}
+  pages        = {362--373}
 }
 @inproceedings{equi-join-comparison,
-  author       = {Stefan Schuh and
-                  Xiao Chen and
-                  Jens Dittrich},
-  title        = {An Experimental Comparison of Thirteen Relational Equi-Joins in Main
-                  Memory},
+  title        = {An Experimental Comparison of Thirteen Relational Equi-Joins in Main Memory},
+  author       = {Stefan Schuh and Xiao Chen and Jens Dittrich},
+  year         = 2016,
   booktitle    = {{SIGMOD} Conference},
-  pages        = {1961--1976},
   publisher    = {{ACM}},
-  year         = {2016}
+  pages        = {1961--1976}
 }
 # dbs
 @inproceedings{umbra,
-  author       = {Thomas Neumann and
-                  Michael J. Freitag},
   title        = {Umbra: {A} Disk-Based System with In-Memory Performance},
+  author       = {Thomas Neumann and Michael J. Freitag},
+  year         = 2020,
   booktitle    = {{CIDR}},
-  publisher    = {www.cidrdb.org},
-  year         = {2020}
+  publisher    = {www.cidrdb.org}
 }
 @inproceedings{hyper,
-  author       = {Alfons Kemper and
-                  Thomas Neumann},
-  title        = {HyPer: {A} hybrid OLTP{\&}OLAP main memory database system based
-                  on virtual memory snapshots},
+  title        = {HyPer: {A} hybrid OLTP{\&}OLAP main memory database system based on virtual memory snapshots},
+  author       = {Alfons Kemper and Thomas Neumann},
+  year         = 2011,
   booktitle    = {{ICDE}},
-  pages        = {195--206},
   publisher    = {{IEEE} Computer Society},
-  year         = {2011}
+  pages        = {195--206}
 }
 @article{hyper-compilation,
-  author       = {Thomas Neumann},
   title        = {Efficiently Compiling Efficient Query Plans for Modern Hardware},
+  author       = {Thomas Neumann},
+  year         = 2011,
   journal      = {Proc. {VLDB} Endow.},
-  volume       = {4},
-  number       = {9},
-  pages        = {539--550},
-  year         = {2011}
+  volume       = 4,
+  number       = 9,
+  pages        = {539--550}
 }
 @inproceedings{main-memory-partitioning,
   title        = {A comprehensive study of main-memory partitioning and its application to large-scale comparison- and radix-sort},
@@ -158,17 +145,24 @@
   publisher    = {{ACM}},
   pages        = {755--766}
 }
+@inproceedings{benchmark-fail-real-world,
+  title        = {Get Real: How Benchmarks Fail to Represent the Real World},
+  author       = {Adrian Vogelsgesang and Michael Haubenschild and Jan Finis and Alfons Kemper and Viktor Leis and Tobias M{\"{u}}hlbauer and Thomas Neumann and Manuel Then},
+  year         = 2018,
+  booktitle    = {DBTest@SIGMOD},
+  publisher    = {{ACM}},
+  pages        = {1:1--1:6}
+}
 #radix partitioning
 @inproceedings{radix-partitioning,
-  author       = {Peter A. Boncz and
-                  Stefan Manegold and
-                  Martin L. Kersten},
   title        = {Database Architecture Optimized for the New Bottleneck: Memory Access},
+  author       = {Peter A. Boncz and Stefan Manegold and Martin L. Kersten},
+  year         = 1999,
   booktitle    = {{VLDB}},
-  pages        = {54--65},
   publisher    = {Morgan Kaufmann},
-  year         = {1999}
-}# og paper
+  pages        = {54--65}
+}
+# og paper
 @article{radix-partitioning-case,
   title        = {On the Surprising Difficulty of Simple Things: the Case of Radix Partitioning},
   author       = {Felix Martin Schuhknecht and Pankaj Khanchandani and Jens Dittrich},
@@ -186,58 +180,48 @@
   publisher    = {www.cidrdb.org}
 }
 @article{partitioned-parallel-radix-sort,
-  author       = {Shin{-}Jae Lee and
-                  Minsoo Jeon and
-                  Dongseung Kim and
-                  Andrew Sohn},
   title        = {Partitioned Parallel Radix Sort},
+  author       = {Shin{-}Jae Lee and Minsoo Jeon and Dongseung Kim and Andrew Sohn},
+  year         = 2002,
   journal      = {J. Parallel Distributed Comput.},
-  volume       = {62},
-  number       = {4},
-  pages        = {656--668},
-  year         = {2002}
+  volume       = 62,
+  number       = 4,
+  pages        = {656--668}
 }
 # SMB
 @article{db-buffer-management,
-  author       = {Wolfgang Effelsberg and
-                  Theo H{\"{a}}rder},
   title        = {Principles of Database Buffer Management},
+  author       = {Wolfgang Effelsberg and Theo H{\"{a}}rder},
+  year         = 1984,
   journal      = {{ACM} Trans. Database Syst.},
-  volume       = {9},
-  number       = {4},
-  pages        = {560--595},
-  year         = {1984}
+  volume       = 9,
+  number       = 4,
+  pages        = {560--595}
 }
-
 @article{smb-join,
-  author       = {Cagri Balkesen and
-                  Gustavo Alonso and
-                  Jens Teubner and
-                  M. Tamer {\"{O}}zsu},
   title        = {Multi-Core, Main-Memory Joins: Sort vs. Hash Revisited},
+  author       = {Cagri Balkesen and Gustavo Alonso and Jens Teubner and M. Tamer {\"{O}}zsu},
+  year         = 2013,
   journal      = {Proc. {VLDB} Endow.},
-  volume       = {7},
-  number       = {1},
-  pages        = {85--96},
-  year         = {2013}
+  volume       = 7,
+  number       = 1,
+  pages        = {85--96}
 }
 @inproceedings{smb-partitioning-sort,
-  author       = {Orestis Polychroniou and
-                  Kenneth A. Ross},
-  title        = {A comprehensive study of main-memory partitioning and its application
-                  to large-scale comparison- and radix-sort},
+  title        = {A comprehensive study of main-memory partitioning and its application to large-scale comparison- and radix-sort},
+  author       = {Orestis Polychroniou and Kenneth A. Ross},
+  year         = 2014,
   booktitle    = {{SIGMOD} Conference},
-  pages        = {755--766},
   publisher    = {{ACM}},
-  year         = {2014}
+  pages        = {755--766}
 }
 # cs
 @misc{what-every-programmer-should-know-about-memory,
-  author = {Ulrich Drepper},
-  title = {What Every Programmer Should Know About Memory},
-  year = {2007},
-  url = {https://people.freebsd.org/~lstewart/articles/cpumemory.pdf},
-  note = {Accessed: 2025-02-11}
+  title        = {What Every Programmer Should Know About Memory},
+  author       = {Ulrich Drepper},
+  year         = 2007,
+  url          = {https://people.freebsd.org/~lstewart/articles/cpumemory.pdf},
+  note         = {Accessed: 2025-02-11}
 }
 # unused references
 @inproceedings{Micro-Partitioning,
