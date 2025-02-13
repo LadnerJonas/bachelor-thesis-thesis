@@ -28,7 +28,7 @@ By grouping writes into a contiguous memory region, radix partitioning improves 
 Our approach extends this concept by applying histogram-based partitioning dynamically to streaming tuple workloads (see Section \ref{section-histogram-based-partitioning}).
 
 \section{Software Managed Buffers}\label{sec-rw-smb}
-Database systems frequently use Software Managed Buffers in the size of cache lines to improve throughput and avoid \ac{TLB} thrashing~\parencite{db-buffer-management, smb-join, smb-partitioning-sort}.
+Database systems frequently use \acp{SMB} in the size of cache lines to improve throughput and avoid \ac{TLB} thrashing~\parencite{db-buffer-management, smb-join, smb-partitioning-sort}.
 SMBs reduce \ac{TLB} misses by buffering small batches of tuples before writing them out, reducing the number of memory page accesses.
 Prior work has shown that using cache-line-sized buffers significantly reduces TLB pressure and improves throughput~\parencite{what-every-programmer-should-know-about-memory}.
 

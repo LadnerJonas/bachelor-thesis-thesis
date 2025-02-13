@@ -50,9 +50,9 @@ After writing to the last partition, the process restarts from the first partiti
 Since our tuple generator creates uniformly distributed keys across all partitions, these references represent best-case upper bounds that are rarely achievable.
 
 In the following benchmarks, we use a constant \ac{SMB} size per implementation, independent of the thread count.
-For example, if an implementation uses a 2 MiB \ac{SMB} and 8 threads, each thread operates with $250 \textrm{;KiB}$ of \ac{SMB}:
+For example, if an implementation uses a 2 MiB \ac{SMB} and 8 threads, each thread operates with $250 \textrm{\;KiB}$ of \ac{SMB}:
 \begin{equation}
-  \frac{\textrm{SMB Size}} {\textrm{Thread count}} = \frac{2 \textrm{;MiB}}{8} = 250 \textrm{;KiB}
+  \frac{\textrm{SMB Size}} {\textrm{Thread count}} = \frac{2 \textrm{\;MiB}}{8} = 250 \textrm{\;KiB}
 \end{equation}
 Since \ac{SMB} size varies between different thread configurations within the same implementation, small performance jumps occasionally appear in the benchmark plots.
 These jumps occur when the \ac{SMB} size aligns with L1/L2 cache lines.
