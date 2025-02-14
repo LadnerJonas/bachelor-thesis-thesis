@@ -2,7 +2,8 @@
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
 \chapter{Related Work}\label{chapter:related_work}\acresetall
-This chapter presents relevant algorithms and approaches, positioning them within the context of our problem domain.
+Efficient data partitioning and distribution are critical for modern database systems and stream processing engines.
+This chapter reviews key techniques, including partitioned joins, radix partitioning, and software-managed buffers, which influence the design of our shuffle operator.
 
 \section{Partitioned Joins}\label{sec-rw-partitioning-joins}
 Partitioned joins are a widely used class of hash-based join algorithms~\parencite{joins-real-system, hash-joins-hardware-tuning, equi-join-comparison}, frequently employed in modern database systems~\parencite{umbra, hyper, hyper-compilation}.

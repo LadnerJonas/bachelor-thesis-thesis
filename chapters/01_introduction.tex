@@ -5,8 +5,8 @@
 
 \section{Motivation}
 Growing demand for real-time data analysis and increasing data volume create significant challenges~\parencite{Real-Time-Processing-of-big-data-streams,locality-aware-partitioning-in-parallel-db, join-processing-in-parallel-db}.
-Distributed and parallel systems like stream processing engines address these issues by distributing tasks across worker nodes~\parencite{Real-Time-Processing-of-big-data-streams, parallel-programming-assessment-for-stream-processing-applications}.
-Data shuffling prepares and distributes tuples among worker nodes~\parencite{RDMA-aware-Data-Shuffling-Operator}.
+Distributed and parallel systems like stream processing engines address these issues using parallelization and distributing tasks across worker nodes~\parencite{Real-Time-Processing-of-big-data-streams, parallel-programming-assessment-for-stream-processing-applications}.
+The shuffle operator plays a crucial role in multiple use cases, including partitioning for spilling operators, parallelization, and partitioned joins~\parencite{Parallelism-exchange-in-parallel-db, RDMA-aware-Data-Shuffling-Operator}.
 As a core streaming component, the shuffle operator must achieve high throughput and low latency to support efficient downstream processing.
 This thesis addresses these challenges by focusing on the most efficient implementations of the shuffle operator.
 
@@ -15,7 +15,7 @@ Streaming processing engines are designed to process data as soon as it arrives 
 Their core operations include partitioning and distributing incoming traffic across worker nodes.
 The distribution process is frequently based on a partitioning function.
 These partitions can then improve the performance of further operators by ensuring the data locality of interdependent tuples~\parencite{Locality-sensitive-operators, join-processing-in-parallel-db}.
-Data locality within the worker node is crucial for maintaining performance and scalability in large-scale deployments.
+Data locality within operators is crucial for maintaining performance and scalability in large-scale deployments.
 
 \section{Shuffle operator}
 The shuffle operator provides a partitioned distribution of tuples, enabling downstream operators to leverage the data locality of partitioned data blocks.
