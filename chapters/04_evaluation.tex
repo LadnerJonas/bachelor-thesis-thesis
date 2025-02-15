@@ -22,7 +22,7 @@ Similarly, real-world systems send tuples via slotted pages, which reside in dif
 
 Each implementation follows the same tuple generation process, varying only in the size of the generated batches.
 \subsubsection{Tuple Shuffle}
-n this step, we simulate the real-world usage of the shuffle operator.
+In this step, we simulate the real-world usage of the shuffle operator.
 The operator processes an input stream of tuple batches and produces a partitioned output stream in the form of slotted pages.
 
 To ensure a fair comparison between implementations, each implementation must generate a partitioned output stream with the following properties: For each partition, all slotted pages must be fully utilized except for the last one, and each slotted page must store its tuples as a contiguous block starting from the first slot.
@@ -123,14 +123,14 @@ Thus, this approach has a significantly higher number of branch misses (1-3x), i
   \label{plot-shuffle-16B-8-16}
 \end{figure}
 
-In figure \ref{plot-shuffle-16B-8-16}, which uses 8 and 16 partitions, we can see that the performance gap between the Local\-Pages\-And\-Merge- and the other implementations shrinks with increasing partitions.
+In figure \ref{plot-shuffle-16B-8-16}, which uses 8 and 16 partitions, we can see that the performance gap between the Local\-Pages\-And\-Merge and the other implementations shrinks with increasing partitions.
 Also, the previous groups of implementations with similar performance characteristics remain.
 
 The Local\-Pages\-And\-Merge implementation does not significantly increase its throughput, as with a higher number of partitions, there also must be more thread-local slotted pages per thread.
 This causes more heap allocations, and the sort-and-merge phase is getting more expensive.
 Furthermore, the \ac{LLC} misses and \ac{TLB} misses increase as more memory locations are accessed.
 
-The previous group of SMB implementations (Smb, Smb\-Batched, and Smb\-BatchedLockFree) can now process very similar amounts of tuples per second as the Local\-Pages\-And\-Merge approach.
+The previous group of SMB implementations (Smb, Smb\-Batched, and Smb\-Lock\-Free\-Batched) can now process very similar amounts of tuples per second as the Local\-Pages\-And\-Merge approach.
 The synchronization contention decreases with increasing partitions, as the load on locks or atomics is now spread up between more slotted pages and thus across more locks or atomics.
 
 The next group contains the following four implementations: CmpProcessingUnits, Hybrid, Radix, and Smb\-Lock\-Free.
@@ -324,13 +324,13 @@ Since we can have at most one not fully used thread-local slotted page per parti
 
 This constant $c_\textrm{LPAM}$ must be considered when using the Local\-Pages\-And\-Merge approach, as it can be several GiB, as seen in figure \ref{plot-heap-16B-P32-Th40}.
 \section{Comparison with Stream Processing Systems}
-We compare our shuffle operator with keyBy operator of the batch and streaming processing engine Apache Flink\cite{apache-flink}.
-This keyBy operator partitions an incoming data stream into disjoint partitions based on a key.
+We compare our shuffle operator with the \texttt{keyBy} operator of the batch and streaming processing engine Apache Flink\cite{apache-flink}.
+This \texttt{keyBy} operator partitions an incoming data stream into disjoint partitions based on a key.
 We use the Java 19 Client and version 1.20 of Apache Flink in the following benchmark.
 Furthermore, we run the Apache Flink cluster on a single machine but let it use all available cores.
 
 Like our implementations, we generate tuples on demand for a data stream.
-We apply the keyBy operator on this data stream by using the tuple key and our partition function (see Section \ref{sec-partitioning}).
+We apply the \texttt{keyBy} operator on this data stream by using the tuple key and our partition function (see Section \ref{sec-partitioning}).
 Then, we collect the count of records per partition.
 \begin{figure}[h]
   \centering

@@ -461,7 +461,7 @@ As the \acfp{SMB} sizes are constant, we can upper bound it by a constant:
 \end{equation}
 Similarly, the LocalPagesAndMerge uses thread-local slotted pages.
 The sort-and-merge phase starts when we finish processing the incoming stream of tuples.
-All slotted pages of a partition that are not full have to be merged.
+All slotted pages of a partition that are not full, have to be merged.
 During the merge process, some slotted pages can be merged into other slotted pages and deallocated.
 These deallocated slotted pages cause an unnecessary memory consumption that can be upper bounded by a constant:
 \begin{equation}
