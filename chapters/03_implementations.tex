@@ -13,7 +13,7 @@ To distribute the tuples into partitions, we use the following function:
   f(t) = t\textrm{.key}\ \%\ \textrm{partitions}
 \end{equation}
 
-As the modulo calculation is quite expensive, we use the following partitioning function when the number of partitions is a power of two:
+Since modulo is costly on modern \acp{CPU}, we use the following partitioning function when partitions are a power of two
 \begin{equation}
   f(t) = t\textrm{.key}\ \&\ (\textrm{partitions - 1})
 \end{equation}
@@ -37,7 +37,7 @@ We are using slotted pages with a total size of 5 MiB per page.
 
       % Header Section
       \fill[gray!20] (0,3) rectangle (5,3.5);
-      \node[anchor=center] at (2.5,3.25) {\textbf{header}};
+      \node[anchor=center] at (2.5,3.25) {\textbf{Header}};
       \draw (0,3) rectangle (5,3.5);
 
       % Slots Section
@@ -91,13 +91,13 @@ As some implementations share the same tuple write-out strategy, we propose the 
   \small
   \begin{tabular}{|p{0.19\textwidth}|p{0.40\textwidth}|p{0.30\textwidth}|}
     \hline
-    \textbf{Variant}             & \textbf{Tuple Writing}                                                                 & \textbf{Synchronization}                                                                         \\
+    \textbf{Variant}             & \textbf{Tuple Writing}                                                                         & \textbf{Synchronization}                                                                         \\
     \hline
-    Lock-based                   & Append to current page; allocate new page if full and append tuple                     & Per-partition lock                                                                               \\\hline
-    Lock-free                    & CAS-based index fetch; allocate new page if full after write; insert tuple using index & Per-slotted page tuple index atomic                                                              \\\hline
-    Radix-based                  & Pre-allocate pages using global histogram, write independently                         & Synchronisation required when creating global histogram, during page allocation and distribution \\\hline
-    Ad-hoc Radix  ("Hybrid")     & Pre-allocate pages using thread-local histogram, write independently                   & Synchronisation required during page allocation and distribution                                 \\\hline
-    Thread-Local Pages and Merge & Write to thread local pages; merge non-full pages                                      & Synchronization during local page collection and during partition-range to merge assignment      \\\hline
+    Lock-based                   & Append to current page; allocate new page if full and then append tuple                        & Per-partition lock                                                                               \\\hline
+    Lock-free                    & CAS-based index fetch; allocate new page if full after current write; insert tuple using index & Per-slotted page tuple index atomic                                                              \\\hline
+    Radix                        & Pre-allocate pages using global histogram, write independently                                 & Synchronisation required when creating global histogram, during page allocation and distribution \\\hline
+    Hybrid                       & Pre-allocate pages using thread-local histogram, write independently                           & Synchronisation required during page allocation and distribution                                 \\\hline
+    Thread-Local Pages and Merge & Write to thread local pages; merge non-full pages                                              & Synchronization during local page collection and during partition-range to merge assignment      \\\hline
   \end{tabular}
   \caption{Overview of the Slotted Page Managers}
 \end{table}
@@ -106,13 +106,13 @@ We initialize each partition with an empty slotted page to simplify the implemen
 Initializing each partition with a slotted page significantly reduces the complexity of the page manager implementations.
 
 \subsection{Lock-based Page Manager}
-We use a single lock and a vector for each partition to store the slotted pages.
+We use a single lock and a vector of slotted pages for each partition to store the incoming tuples.
 \begin{algorithm}[h]
   \caption{Lock-based Page Manager insert\_tuple Algorithm}
   \label{Lock-based-page-manager-insert-tuple}
   \SetKwInOut{Input}{input}
 
-  \Input{ \texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
+  \Input{ \texttt{tuple}: tuple to be inserted, \texttt{partition}: target partition index}
 
   \SetKwFunction{Insert}{insert\_tuple}
 
@@ -120,15 +120,17 @@ We use a single lock and a vector for each partition to store the slotted pages.
 
   \textbf{with} partition\_locks[partition]:
   \tcp{Acquire lock}
-  \If{\textbf{not} pages[partition][-1].add\_tuple(tuple)}{
+  \If{\textbf{not} pages[partition].back().add\_tuple(tuple)}{
     add\_page(partition) \;
-    pages[partition][-1].add\_tuple(tuple) \;
+    pages[partition].back().add\_tuple(tuple) \;
   }
 \end{algorithm}
+
 As can be seen in Algorithm \ref{Lock-based-page-manager-insert-tuple}, the lock-based insertion process is straightforward.
-The insertion on a given slotted page, can only fail if the page is full.
+The insertion on a given slotted page can only fail if the page is full.
 This can easily be checked by reading the tuple count in the metadata section of the slotted page.
-If the current page is full, we just allocate and append a new slotted page to the page vector of this partition.
+If the current page is full, we allocate and append a new slotted page to the page vector of this partition.
+Now, we can write the current tuple.
 
 \subsubsection*{Tuple insertion in batches}
 Similarly, we can further optimize the write-out by using tuple-batches.
@@ -137,7 +139,7 @@ Similarly, we can further optimize the write-out by using tuple-batches.
   \label{Lock-based-page-manager-insert-tuple-batch}
   \SetKwInOut{Input}{input}
 
-  \Input{ \texttt{tuples}: The tuple-batch to be inserted\\ \texttt{partition}: The target partition index}
+  \Input{ \texttt{tuples}: tuple-batch to be inserted, \texttt{partition}: target partition index}
 
   \SetKwFunction{Insert}{insert\_tuple\_batch}
 
@@ -146,9 +148,9 @@ Similarly, we can further optimize the write-out by using tuple-batches.
   \textbf{with} partition\_locks[partition]:
   \tcp{Acquire lock}
   \For{tuple \textbf{in} tuples}{
-    \If{\textbf{not} pages[partition][-1].add\_tuple(tuple)}{
+    \If{\textbf{not} pages[partition].back().add\_tuple(tuple)}{
       add\_page(partition) \;
-      pages[partition][-1].add\_tuple(tuple) \;
+      pages[partition].back().add\_tuple(tuple) \;
     }
   }
 \end{algorithm}
@@ -190,10 +192,8 @@ This information ensures we can write the tuple on the page without requiring an
   \caption{Lock-free Page Manager insert\_tuple Algorithm}
   \label{Lock-free-page-manager-insert-tuple}
   \SetKwInOut{Input}{input}
-  \SetKwInOut{Output}{output}
 
-  \Input{\texttt{tuple}: The tuple to be inserted, \texttt{partition}: The target partition index}
-  \Output{Tuple inserted into the appropriate slotted page of the specified partition.}
+  \Input{\texttt{tuple}: tuple to be inserted, \texttt{partition}: target partition index}
 
   \SetKwFunction{Insert}{insert\_tuple}
 
@@ -221,20 +221,20 @@ Similar to Radix Partitioning (see Section \ref{sec-rw-radix-partitioning}), thi
 This page manager applies the concept of Radix Partitioning on slotted pages.
 It uses a three-step process:
 \begin{enumerate}
-  \item Histogram retrieval: Each thread reads its assigned materialized tuple chunk and
-        builds up a histogram.
-        As we are using fixed-size tuples, it only stores the tuple count per partition.
+  \item \textbf{Histogram retrieval:}
+        Each thread reads its assigned materialized tuple chunk and builds up a histogram.
+        As we are using fixed-size tuples, this histogram only stores the tuple count per partition.
         Then, we forward this histogram to the Radix Page Manager, which collects the histogram of each thread and then moves on to step 2.
 
-  \item Page allocation: With all histograms at hand, the page manager sums up each
-        histogram into a global histogram.
+  \item \textbf{Page allocation:}
+        With all histograms at hand, the page manager sums up each local histogram into a global histogram.
         This global histogram stores how many tuples each partition has to store.
         With that information, we can allocate the required pages for each partition.
         When all pages are ready to be used, step 3 begins.
 
-  \item  Assignment of slotted page sub-chunks: Each thread uses its local histogram to
-        request storage locations for its tuples.
-        The page manager uses the pre-allocated pages to assign each thread one or more memory chunks.
+  \item \textbf{Assignment of slotted page sub-chunks:}
+        Each thread uses its local histogram to request storage locations for its tuples.
+        The page manager uses the pre-allocated pages to assign each thread one or more memory chunks for each partition.
         The thread can then use these memory chunks exclusively to store each tuple.
         Only the tuple count in the metadata has to be atomicly updated once, to signal that this thread has finished its work on this page.
         Otherwise, this write-out process does not rely on synchronization after the memory chunk distribution.
@@ -242,29 +242,31 @@ It uses a three-step process:
 After these three steps, each page can be sent to its receiver once the expected tuple count is reached.
 The last thread to atomically-increment the tuple count in the metadata section can do this.
 
-\subsubsection{Ad-hoc Radix ("Hybrid") Page Manager} \label{subsubsection-Ad-hoc-Radix-Page-Manager}
+\subsubsection{Hybrid Page Manager} \label{subsubsection-Hybrid-Page-Manager}
 The idea of the previous Radix Page Manager can be used to construct an approach where each thread can hand in its histogram and receive memory chunks on slotted pages independently from other threads.
 This page manager merges the three steps of the Radix Page Manager into one.
 
 A thread hands in its histogram and requests the memory chunks, where the tuples can be written.
 The page manager reads the histogram and processes each partition individually.
 We acquire the partition lock for each partition where at least a single tuple has to be stored.
-If there is any space left on a slotted page, it is used up and assigned to this thread.
+If there is any space left on a slotted page, it will be used and assigned to this thread.
 When the current page is full, we allocate a new page, and the page manager continues the assignment process.
 Each thread uses these exclusive memory locations to store its tuples.
 
 Compared to the Radix Page Manager, this page manager does not pre-allocate all necessary pages.
-Instead, it allocates the pages when needed.
+Instead, it allocates the slotted pages when needed.
 Furthermore, a thread can already receive its memory chunks while others still construct their histograms.
 This change allows this implementation to avoid the materialization of all tuples.
 \subsection{Thread-Local Pages and Merge-based Page Manager}\label{subsection-Thread-Local-Pages-Page-Manager}
-A further step into reducing the necessity of synchronization is thread-local slotted pages.
+A further step into reducing the necessity of synchronization are thread-local slotted pages.
 We split this slotted page management scheme into two phases:
 \begin{enumerate}
-  \item Thread-local write-out: These slotted pages are exclusively used by the owning thread, and after the thread finishes its tuple processing, each thread hands in its pages.
+  \item \textbf{Thread-local write-out:}
+        These slotted pages are exclusively used by the owning thread, and after the thread finishes its tuple processing, each thread hands in its pages.
         When the page manager receives all pages of each thread, the merging phase starts.
 
-  \item Page merging: The page manager splits all partitions onto the available threads.
+  \item \textbf{Page merging:}
+        The page manager splits all partitions onto the available threads.
         Each thread is then responsible for merging the slotted pages for each partition in the assigned partition range.
         To minimize tuple movement, the slotted pages are sorted decreasingly by the tuple count.
         Then, we merge the pages with fewer tuples into the fuller pages.
@@ -278,26 +280,23 @@ This unnecessary allocation of pages can lead to a significantly higher memory c
 We use the following optimizations to speed up our simulation of the shuffle operator.
 \subsubsection{Padded atomics and locks}
 All implementations that use an array of partition locks are affected by false sharing.
-False sharing appears when a cache line stores two independent values and one \ac{CPU} core modifies the first value.
-Then, another CPU core wants to access the second value, which causes a cache miss.
+False sharing occurs when multiple CPU cores access different variables that reside on the same cache line, leading to unnecessary cache coherence traffic.
+Specifically, if one core modifies a lock while another core reads or writes a different lock within the same cache line, cache invalidations occur, causing performance degradation~\parencite{what-every-programmer-should-know-about-memory}.
 
-We avoid this performance degradation by storing each partition lock aligned to the L1-cache line boundary.
-This alignment significantly reduces the number of L1 cache misses, as partition locks are frequently accessed.
+We mitigate this performance degradation by storing each partition lock aligned to the L1-cache line boundary.
+This alignment ensures that locks do not share cache lines, reducing coherence overhead and minimizing L1 cache misses, which improves performance
 
-\subsubsection{Minimal page-locking}
-When holding a partition lock, the tuple write-out onto a slotted page is expensive.
-We gather the necessary write-out information to reduce the lock duration, prepare the subsequent tuple insertion, and release the lock before the actual tuple write-out.
+\subsubsection{Minimal page-locking} When holding a partition lock, the tuple write-out onto a slotted page is expensive.
+To minimize lock duration, we collect the required write-out information, prepare the next tuple insertion, and release the lock before writing the tuple.
 
 \subsubsection{Two-step buffered slotted page write out}
-We can process each tuple individually when writing out a batch of tuples onto a slotted page.
-First, we construct the slot for the tuple, then store the variable-size data in the data section at the end of the page.
-Linux on an x86-64 machine typically uses 4 KiB memory pages.
-As we use 5 MiB slotted pages, the slot and data are expected to be on different memory pages.
+A naive approach will process each tuple individually when writing out a batch of tuples onto a slotted page.
+First, it will construct the slot for the tuple, then store the variable-size data in the data section at the end of the page.
+Since we use 5 MiB slotted pages and x86-64 Linux systems typically have 4 KiB memory pages, the slot and data are expected to reside on different memory pages.
 
-We store our batches in slot and data phases to reduce the amount of simultaneously accessed pages.
+Instead of this naive approach, we store our tuple batches in slot and data phases to reduce the amount of simultaneously accessed pages.
 As we now write to the slot or data section, we switch between memory pages less often.
 This two-phase approach is more friendly to the \ac{CPU} cache and the \ac{TLB}.
-
 \section{On-Demand Partitioning} \label{section-On-Demand-Partitioning}
 \subsection{Overview}
 On-demand Partitioning is the most straightforward algorithm for implementing the shuffle operator.
@@ -307,16 +306,13 @@ With this information, we can write the tuple into the corresponding partition.
 
 This implementation is compatible with the lock-based or lock-free Page Manager and the Thread-Local Pages and Merge-based Page Manager (see Section \ref{section-slotted-page-managers})
 
-\subsection{Software Managed Buffers-based Partitioning}
-
-This naive approach can be significantly improved by using \acfp{SMB}.
+\subsection{Software Managed Buffers-based Partitioning} This naive approach can be significantly improved by using \acfp{SMB}.
 Instead of immediately writing out the tuple, we store it in a thread-locally allocated buffer.
-Each partition owns a dedicated area within this buffer.
-We write the tuples to a slotted page when this sub-region capacity is full.
+Each partition owns a dedicated area within this cache line-sized buffer.
+We write the tuples of this partition to a slotted page when its sub-region capacity is reached.
 Similarly, if all incoming tuples have been processed, we write out all remaining tuples inside the buffer.
 
-This temporal storage brings another benefit.
-We can now use the batch insertion features from the page managers.
+This temporal storage brings another benefit: We can now use the batch insertion features from the page managers.
 Batch insertions are more \ac{CPU}-cache and \ac{TLB} friendly, as we switch our modified memory locations less often.
 
 \section{Histogram-based Partitioning}\label{section-histogram-based-partitioning}
@@ -326,7 +322,7 @@ A histogram in the context of Radix Partitioning stores information like the cou
 We use this information to assign each thread the memory blocks it needs.
 
 In our fixed-size tuple case, we only store the count of tuples of each partition.
-As we have to construct the whole histogram, we have to iterate over all tuples twice before the thread can store any tuples.
+As we have to construct the whole histogram, we have to iterate over all tuples before the thread can store any tuples.
 The first phase is necessary to create the histogram and receive memory locations to store the tuples.
 The second phase then uses these memory locations to store the tuples.
 
@@ -343,11 +339,11 @@ We can store the tuples without synchronization as we assign exclusive memory lo
 Only the tuple count in the metadata section of each slotted page has to be updated atomically.
 A slotted page can be sent to the next downstream operator when it reaches its proposed tuple count.
 
-\subsection{Ad-hoc Radix ("Hybrid") Partitioning}
+\subsection{Hybrid Partitioning}
 As the full materialization of all generated tuples and the wait times until the global histogram is created are expensive, we propose a more efficient solution.
 Instead of materializing all tuples, we process all incoming tuples morsel-driven.
-For a given morsel, we then create a histogram.
-The Ad-hoc Radix Page Manager (see Section \ref{subsubsection-Ad-hoc-Radix-Page-Manager}) uses this morsel-histogram to greedily assign this thread exclusive memory location to store the tuples.
+For a given morsel, we create a histogram.
+The Hybrid Page Manager (see Section \ref{subsubsection-Hybrid-Page-Manager}) uses this morsel-histogram to greedily assign this thread exclusive memory location to store the tuples.
 
 Like in the streaming Radix Partitioning case above, we store the tuples on slotted pages without synchronization.
 The tuple count in the metadata section also requires synchronization in the form of an atomic tuple count.
@@ -370,37 +366,39 @@ This implementation constructs the partition ranges so that it fulfills two cond
   \item The union of all partition ranges results in a complete coverage of all possible partitions.
 \end{enumerate}
 With these two conditions in place, we avoid having to synchronize the tuple write-out process.
-However, we must process each tuple $p$ times, where $p$ is the number of partition ranges.
+However, we must process each tuple $pr$ times, where $pr$ is the number of partition ranges.
 As the incoming tuples only have to be read, they typically can reside in the L2 or L3 \ac{CPU} caches.
 
 Assuming uniform distribution across all partitions, the implementation efficiency decreases with increasing CPU core count.
 If we distribute the partitions ($p$) into fair partition ranges, the likelihood of a given tuple being partitioned in a given partition range is:
-\begin{equation}\label{equation-CMP-exclusive-partition-ranges}
-  \Pr[X=\textrm{partition range}_i] = \frac{|\textrm{partition range}_i|}{p},  \quad \forall i
-\end{equation}
-As we want to increase the amount of partition ranges with increasing core count, the likelihood that a thread processes a tuple for its assigned partition range decreases.
+\begin{gather}
+  |\textrm{partition range}_i| \approx \frac{p}{pr},  \quad \forall i \\
+  \Pr[X=\textrm{partition range}_i] = \frac{|\textrm{partition range}_i|}{p} \approx \frac{1}{pr},  \quad \forall i \label{equation-CMP-exclusive-partition-ranges}
+\end{gather}
+As we want to increase the amount of partition ranges ($pr$) with increasing core count, the likelihood that a thread processes a tuple for its assigned partition range decreases.
 This is the case, as with increasing partition ranges the sizes of each partition range decreases.
 \subsection{Collaborative Morsel Processing using processing units}
 As we can see in the above \ac{CMP} with exclusive partition ranges implementation, exclusive partition ranges theoretical performance does not scale well.
-This implementation aims to reduce this impact by using processing units.
-A processing unit is a partition of $t$ threads that splits the total partitions into $t$ fair, exclusive partition ranges.
+By using processing units, we aim to mitigate this scaling issue.
+A processing unit is a partition of $pt$ threads that splits the total partitions into $pt$ fair, exclusive partition ranges.
 Again, within a processing unit, no partition ranges overlap.
 
 When we use multiple processing units, we have to synchronize the tuple write-out again.
-In contrast to previous implementations without exclusive partition ranges, each partition can be written by only one thread per processing unit.
+In contrast to the previous implementations without exclusive partition ranges, each partition can be written by only one thread per processing unit.
 This significantly reduces the contention on the synchronization mechanism of each partition.
 
 Furthermore, we must process each tuple only by a single processing unit.
 Assuming we fairly split up our $c$ \ac{CPU} cores into $pu$ processing units, then each processing unit will have around $pt\approx\frac{c}{pu}$ threads to process tuples.
 When we increase the count of CPU cores and processing units similarly, the amount of threads per processing unit remains constant.
 Thus, our likelihood of a randomly selected thread processing a tuple that belongs to its partition range is:
-\begin{equation}\label{equation-CMP-PU}
-  \Pr[X=\textrm{partition range}_i] \approx \frac{|\textrm{partition range}_i|}{pt},  \quad \forall i
-\end{equation}
+\begin{gather}
+  |\textrm{partition range}_i| \approx \frac{p}{pt},  \quad \forall i \\
+  \Pr[X=\textrm{partition range}_i] = \frac{|\textrm{partition range}_i|}{p}\approx \frac{1}{pt} ,  \quad \forall i\label{equation-CMP-PU}
+\end{gather}
 
-When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units constant, the processing efficiency per thread remains constant.
-In contrast, when using \acl{CMP} with exclusive partition ranges, the amount of exclusive partition ranges increases with the CPU core count.
-This increase in exclusive partition ranges decreases the processing efficiency when increasing the CPU cores.
+When we compare the approximation in \ref{equation-CMP-exclusive-partition-ranges} and \ref{equation-CMP-PU}, it is visible that as long as we keep the ratio between CPU cores and processing units ($pt$) constant, the processing efficiency per thread remains constant.
+In contrast, when using \acl{CMP} with exclusive partition ranges, the amount of exclusive partition ranges ($pr$) increases with the CPU core count.
+This increase in exclusive partition ranges ($pr$) decreases the processing efficiency when increasing the CPU cores.
 
 \section{Thread-Local Pages and Merge-based Partitioning}
 This implementation is very similar to the previous On-Demand implementation with \aclp{SMB} (see Section \ref{section-On-Demand-Partitioning}).
@@ -408,14 +406,14 @@ Instead of using the On-Demand Page Manager, it heavily builds on the Thread-Loc
 Thus, this solution avoids sharing slotted pages between threads, which can only be achieved with significantly higher memory usage.
 
 Each thread partitions the incoming tuples into thread-local slotted pages.
-With increasing tuple count and more partitions, these thread-local slotted pages are less likely to be fully used, leading to significant memory overhead.
 We hand these slotted pages to the shared Page Manager at the end of the tuple processing.
+With more partitions, these thread-local slotted pages are less likely to be fully used, leading to significant memory overhead.
 
-When the Page Manager receives all slotted pages, the slotted pages of each partition are sorted decreasingly by the number of tuples they store.
-Then, each thread is assigned an exclusive partition range and slotted pages for this partition range.
+When the Page Manager receives all slotted pages, each thread is assigned an exclusive partition range and all slotted pages for this partition range.
+Then the slotted pages of each partition are sorted decreasingly by the number of tuples they store.
 All threads then merge the emptier pages into the fuller pages.
-All empty pages, which caused the additional memory overhead of this implementation, are then deallocated.
-Then, each thread returns the merged slotted pages to the Page Manager, which is the last part of the partitioning process.
+Any empty page, which causes the additional memory overhead of this implementation, is then deallocated.
+Each thread then returns the merged slotted pages to the Page Manager, which is the last part of the partitioning process.
 
 \section{Complexity Analysis}
 \subsection{Time Complexity}
@@ -424,13 +422,17 @@ Thus, $\Omega(n)$ is the lower bound for all shuffle implementations.
 \subsubsection{Tuple Access Frequency}
 To set an upper bound for the time complexity, we first want to analyze the tuple access frequency of each implementation:
 \begin{itemize}
-  \item On-Demand Partitioning: Every tuple is only processed once and directly written to its final destination.
-  \item Smb-based Partitioning: When using \acp{SMB}, we temporally store the tuple in the buffer, which increases the access count to two.
-  \item Histogram-based Partitioning: To create a histogram, we must access the tuple once.
+  \item \textbf{On-Demand Partitioning:}
+        Every tuple is only processed once and directly written to its final destination.
+  \item \textbf{Smb-based Partitioning:}
+        When using \acp{SMB}, we temporally store the tuple in the buffer, which increases the access count to two.
+  \item \textbf{Histogram-based Partitioning:}
+        To create a histogram, we must access the tuple once.
         Furthermore, if the implementation requires full materialization, we materialize all tuples before processing them.
         This means that the tuple access frequency is two or three, depending on whether materialization is necessary.
 
-  \item Collaborative Morsel Processing: In the more straightforward implementation with exclusive partition ranges, we must process each tuple at least $t$ times, with $t$ denoting the threads used.
+  \item \textbf{Collaborative Morsel Processing:}
+        In the more straightforward implementation with exclusive partition ranges, we must process each tuple at least $t$ times, with $t$ denoting the threads used.
         This is the case, as we assign each thread an exclusive partition range.
         As we use \acp{SMB}, we access each tuple twice when processing it.
         Thus, the tuple access frequency is $t + 1$.
@@ -439,7 +441,8 @@ To set an upper bound for the time complexity, we first want to analyze the tupl
         $pt_i$ is the total number of threads (and count of exclusive partition ranges) of processing unit $i$.
         Similarly, it follows that the tuple access frequency is upper bounded by $\textrm{max}(pt_i) + 1, \; \forall i$ as we use \acp{SMB} as well.
 
-  \item Thread-Local Pages and Merge-based Partitioning: We also use \acp{SMB} in this implementation.
+  \item \textbf{Thread-Local Pages and Merge-based Partitioning:}
+        We also use \acp{SMB} in this implementation.
         Similar to the Smb-based Partitioning, we must at least store the tuples two times.
         However, as we use thread-local slotted pages, we may have to merge a slotted page into another one.
         A tuple can only be merged into another page or moved to a different location once.

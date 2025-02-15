@@ -38,13 +38,16 @@ The key contribution of this thesis is the creation and evaluation of efficient,
 In order to simulate the real-world usage of the shuffle operator in a streaming system, the following three-step shuffle-simulation is proposed:
 
 \begin{enumerate}
-  \item Tuple generation: The tuples are generated in a batched manner using a pseudo-random generator.
+  \item \textbf{Tuple generation:}
+        The tuples are generated in a batched manner using a pseudo-random generator.
         Each implementation requests the ad-hoc generation of tuples, which contain a 32-bit key field and an optional variable-size data field.
 
-  \item Data shuffle: The requested, random-generated tuples are then processed using the different implementations and stored within partition buckets.
+  \item \textbf{Data shuffle:}
+        The requested, random-generated tuples are then processed using the different implementations and stored within partition buckets.
         Each partition bucket consists of slotted pages, where the tuple of this partition are stored.
 
-  \item Storing tuples on slotted pages: The implementations range from thread-local to shared slotted-page write-out strategies.
+  \item \textbf{Storing tuples on slotted pages:}
+        The implementations range from thread-local to shared slotted-page write-out strategies.
         The implementations using a shared write-out policy, can then be further categorized into locking and lock-free approaches.
 \end{enumerate}
 This simulation is close to the real world usage of the shuffle operator, as streaming systems work on incoming tuple batches that are not materialized like in traditional relational databases.
