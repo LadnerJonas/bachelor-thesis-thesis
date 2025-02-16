@@ -9,7 +9,7 @@ In contrast, the \ac{SMB} implementations (Smb, SmbBatched, SmbLockfree, and Smb
 The Hybrid and Radix implementations perform well, but the Radix approach requires materializing the incoming tuple stream.
 The Hybrid implementation mitigates full materialization while achieving comparable throughput.
 Our approach, CmpWithProcessingUnits, seeks to reduce the contention through selective write-outs.
-However, the associated overhead significantly reduces throughput across most benchmarks.
+However, branch misses from selective write-outs significantly reduce throughput in most benchmarks.
 Finally, the CmpExclusivePartitionRanges and OnDemand approaches fail to scale with increasing thread counts, resulting in performance comparable to or worse than single-threaded execution.
 \section{Future Work}
 Future research should explore adaptive partitioning schemes and other optimization techniques to reduce the \ac{TLB} misses and memory load observed in the LocalPagesAndMerge approach.
