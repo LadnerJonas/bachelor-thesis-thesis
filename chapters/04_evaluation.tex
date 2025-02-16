@@ -287,7 +287,7 @@ Like in the previous benchmarks, the CmpExclusivePartitionRanges again cannot sc
 This means that for a given thread, the likelihood that the next tuple must be placed in a partition of its assigned exclusive partition range decreases.
 This causes vast numbers of branch misses, and as all threads have to process all tuples, this implementation struggles to scale.
 
-\subsubsection{Memory Consumption}
+\subsection{Peak Heap Memory Benchmark}
 We used the heap profiler Massif within Valgrind 3.24 to measure the heap memory consumption of our implementations.
 In our memory benchmark, we partition 67.2 Mio.
 tuples of 16 bytes ($\approx$ 1 GiB) into 32 partitions.
@@ -297,7 +297,7 @@ To highlight the impact of the benchmark parameters on the heap usage, we execut
 \begin{figure}[h]
   \centering
   \resizebox{\linewidth}{!}{\input{figures/evaluation/memory_plot-16B-P32-Th40.pgf}}
-  \caption{Peak Heap Usage when using 32 Partitions, 40 Threads and 67.2 Mio.
+  \caption[Peak Heap Memory Benchmark Plot]{Peak Heap Usage when using 32 Partitions, 40 Threads and 67.2 Mio.
     16B Tuples (1 GiB)} \label{plot-heap-16B-P32-Th40} \end{figure}
 In figure \ref{plot-heap-16B-P32-Th40}, we visualized the peak heap usage of each implementation.
 The partitioning of 67.2 Mio.
@@ -335,7 +335,7 @@ Then, we collect the count of records per partition.
 \begin{figure}[h]
   \centering
   \resizebox{.75\linewidth}{!}{\input{figures/evaluation/apache-flink-comparison.pgf}}
-  \caption{Tuples per Second Comparision when using 1024 Partitions}
+  \caption[Tuples per Second Comparison Plot with Apache Flink]{Tuples per Second Comparision when using 1024 Partitions}
   \label{plot-apache-flink-comparison}
 \end{figure}
 
