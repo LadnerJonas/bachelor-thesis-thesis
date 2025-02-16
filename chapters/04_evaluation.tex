@@ -80,12 +80,15 @@ The two best-case references perform very similarly with a few threads, but as t
   \label{plot-shuffle-16B-2-4}
 \end{figure}
 In figure \ref{plot-shuffle-16B-2-4}, we can see that the LocalPagesAndMerge-implementation processes by far the most tuples per second.
+This approach has the highest throughput, using 20\% fewer cycles, and can execute 25\% more \ac{IPC}.
 It even exceeds the synchronized best-case reference, as the LocalPagesAndMerge-approach avoids synchronizing during write-out at the cost of a small sort-and-merge phase at the end.
-In the four partition plots, we can already see that the performance of the LocalPagesAndMerge implementation decreases compared to the other implementations.
-This is the case, as the thread-local pages cause a lot of heap allocations, and with an increasing number of partitions, the sort-and-merge phase cost also increases.
+
+In the four partition plots, we can already see that the performance gap of the LocalPagesAndMerge implementation decreases compared to the other implementations.
+This is because the other approaches, which suffer from contention due to synchronization, benefit from increasing partition counts as the workload becomes more evenly distributed.
 
 After the LocalPagesAndMerge-implementation, there is a group of three \acf{SMB}-based implementations: Smb, SmbBatched, and SmbLockFreeBatched.
-These three implementations struggle to scale with increasing thread count in the two partition case, as having to write all the tuples on two shared slotted pages causes a lot of contention.
+These three implementations struggle to scale with increasing thread count in the two partition case, as having to write all the tuples on two shared slotted pages causes much contention.
+Compared to the LocalPagesAndMerge approach, they use slightly more cycles and have fewer \ac{IPC}.
 However, it can already be seen that with an increasing number of partitions, these three implementations can scale with increasing thread count.
 
 The next group contains three implementations: \acf{CMP} with Processing Units, Hybrid, and Radix.
@@ -135,15 +138,15 @@ The synchronization contention decreases with increasing partitions, as the load
 
 The next group contains the following four implementations: CmpProcessingUnits, Hybrid, Radix, and SmbLockFree.
 The leading implementation is the Radix approach, which performs better than the Hybrid implementation.
-In comparison, the Radix implementations have higher L1-cache-/LLC misses but have fewer branch- and TLB misses.
+In comparison, the Radix implementations have higher L1-cache/LLC misses but have fewer branch- and TLB misses.
 This leads to overall better CPU usage with less time idling.
-All implementations of this group have significantly higher L1-cache-/LLC misses than the previous group.
+All implementations of this group have significantly higher L1-cache/LLC misses than the previous group.
 
 The last group of implementations, which does not scale well, contains yet again: CmpExclusivePartitionRanges, OnDemand, and SmbLockFree.
 Similar to the previous figure \ref{plot-shuffle-16B-2-4}, increasing the number of partitions does not solve the decreasing efficiency per added thread issue of the CmpExclusivePartitionRanges implementation.
 Similarly, the number of logical cores is higher than the maximum number of partitions, which causes that a few threads do not get assigned a partition range und thus, cannot be used.
 Also, the OnDemand approach struggles even more to write out the tuples, as the number of slotted pages increases with increasing partitions.
-This causes even more L1-cache-/LLC misses, as the \ac{CPU} cannot hold all these memory locations in caches.
+This causes even more L1-cache/LLC misses, as the \ac{CPU} cannot hold all these memory locations in caches.
 Like the previous benchmark, the SmbLockFree approach still uses the two busy waiting loops to atomically get the write-out information for a given tuple batch.
 With an increasing number of partitions, these atomic tuple-count values are less frequently requested by multiple threads.
 Thus, with increasing partitions, this implementation starts to improve its scaling.
@@ -229,7 +232,7 @@ The next group of implementations is the following three that scale with increas
 The CmpProcessingUnits approach has significantly higher cache misses due to its selective write-out, significantly slowing down this implementation.
 The Hybrid variant performs slightly worse than the \ac{SMB} implementations due to slightly more \ac{LLC} misses.
 Lastly, the Radix implementation struggles to scale in the 32 partition case but performs better when using 1024 partitions.
-It has around 50\% more L1-cache-/\ac{LLC} misses than the Hybrid approach, which slows down this approach.
+It has around 50\% more L1-cache /\ac{LLC} misses than the Hybrid approach, which slows down this approach.
 
 In the non-scaling group, there are two implementations: CmpExclusivePartitionRanges and OnDemand.
 Like the previous benchmarks, the CmpExclusivePartitionRanges per thread efficiency decreases due to the more selective tuple write-out.
