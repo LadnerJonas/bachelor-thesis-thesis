@@ -453,7 +453,7 @@ Using the tuple access metric of each implementation, we can upper bound the tup
 As we only apply $O(1)$ operations on each tuple access, we can upper bound time complexity of the implementations using this constant $O(c_\textrm{TAF} * n) = O(n)$.
 Combining both lower- and upper bounds, our proposed implementations run in $\Theta(n) = \Omega(n) \cap O(n) $.
 \subsection{Space Complexity}\label{section-space-complexity}
-Similarly, as in the Time Complexity analysis, we store each tuple at least once.
+Similarly, as in the time complexity analysis, we store each tuple at least once.
 Thus, we can set a lower bound of $\Omega(n)$.
 
 As the \acfp{SMB} sizes are constant, we can upper bound it by a constant:
@@ -474,5 +474,5 @@ Thus, we continue our space complexity analysis with the assumption: $n \gg c_\t
 
 In the full materialization of Radix Partitioning, we create a copy of each tuple to store it on the page.
 Otherwise, we only move the tuples until we store them in their final location on a slotted page.
-With this information, we can define the upper bound for the Space Complexity to $O(2 * n + c_{SMB} + c_\textrm{LPAM}) = O(n)$.
-It follows that the Space Complexity of each implementation is within $\Theta(n) = \Omega(n) \cap O(n) $ .
+With this information, we can define the upper bound for the space complexity to $O(2 * n + c_{SMB} + c_\textrm{LPAM}) = O(n)$.
+It follows that the space complexity of each implementation is within $\Theta(n) = \Omega(n) \cap O(n) $ .

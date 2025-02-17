@@ -190,7 +190,7 @@ When using the 32 partitions, the Radix approach performs better as it only has 
 In contrast, the Hybrid implementations have 20\% higher \ac{IPC} in the 1024 partition case and thus perform better there.
 
 The remaining four implementations (CmpExclusivePartitionRanges, CmpProcessingUnits, OnDemand, SmbLockFree) struggle to scale with increasing threads when using 32 partitions.
-The CmpExclusivePartitionRanges has yet again extremely high numbers of branch misses due to the partition range exclusive tuple processing.
+The CmpExclusivePartitionRanges has yet again extremely high numbers of branch misses due to the selective tuple processing.
 In contrast, the CmpProcessingUnits does scale with the number of threads in the 1024 partition case, but still up to 100x more branch misses than the best-performing implementations.
 The OnDemand approach does have slightly fewer branch misses than the previous two implementations.
 However, due to the single tuple write-out, it has up to 100x more \ac{TLB} misses than the other implementations.
@@ -337,7 +337,7 @@ We apply the \texttt{keyBy} operator on this data stream by using the tuple key 
 Then, we collect the count of records per partition.
 \begin{figure}[h]
   \centering
-  \resizebox{.75\linewidth}{!}{\input{figures/evaluation/apache-flink-comparison.pgf}}
+  \resizebox{.7\linewidth}{!}{\input{figures/evaluation/apache-flink-comparison.pgf}}
   \caption[Tuples per Second Comparison Plot with Apache Flink]{Tuples per Second Comparision when using 1024 Partitions}
   \label{plot-apache-flink-comparison}
 \end{figure}
