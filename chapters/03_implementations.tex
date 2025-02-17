@@ -1,13 +1,13 @@
 % !TeX root = ../main.tex
 % Add the above to each chapter to make compiling the PDF easier in some editors.
 
-\chapter{Implementations}\label{chapter:implementations}\acresetall
+\chapter{Implementation}\label{chapter:implementations}\acresetall
 This chapter explains the shuffle operator implementations and how to implement them efficiently.
 As the shuffle operator simulation is based on fixed-size tuples, the explanations of the following implementations are based on fixed-size tuples as well.
 
 \section{Partitioning}\label{sec-partitioning}
 We generate our tuples using a pseudo-random number generator.
-Since the tuple key is uniformly distributed, each partition receives an approximately equal number of tuples, ensuring balanced workload distribution.
+Since the tuple key is uniformly distributed, each partition receives an approximately equal number of tuples, ensuring a balanced workload distribution.
 To distribute the tuples into partitions, we use the following function:
 \begin{equation}
   f(t) = t\textrm{.key}\ \%\ \textrm{partitions}
@@ -91,13 +91,13 @@ As some implementations share the same tuple write-out strategy, we propose the 
   \small
   \begin{tabular}{|p{0.19\textwidth}|p{0.40\textwidth}|p{0.30\textwidth}|}
     \hline
-    \textbf{Variant}             & \textbf{Tuple Writing}                                                                         & \textbf{Synchronization}                                                                         \\
+    \textbf{Variant}             & \textbf{Tuple Writing}                                                                         & \textbf{Synchronization}                                                                       \\
     \hline
-    Lock-based                   & Append to current page; allocate new page if full and then append tuple                        & Per-partition lock                                                                               \\\hline
-    Lock-free                    & CAS-based index fetch; allocate new page if full after current write; insert tuple using index & Per-slotted page tuple index atomic                                                              \\\hline
-    Radix                        & Pre-allocate pages using global histogram, write independently                                 & Synchronisation required when creating global histogram, during page allocation and distribution \\\hline
-    Hybrid                       & Pre-allocate pages using thread-local histogram, write independently                           & Synchronisation required during page allocation and distribution                                 \\\hline
-    Thread-Local Pages and Merge & Write to thread local pages; merge non-full pages                                              & Synchronization during local page collection and during partition-range to merge assignment      \\\hline
+    Lock-based                   & Append to current page; allocate new page if full and then append tuple                        & Per-partition lock                                                                             \\\hline
+    Lock-free                    & CAS-based index fetch; allocate new page if full after current write; insert tuple using index & Per-slotted page tuple index atomic                                                            \\\hline
+    Radix                        & Pre-allocate pages using global histogram, write independently                                 & Synchronisation required when creating global histogram, during page allocation and assignment \\\hline
+    Hybrid                       & Pre-allocate pages using thread-local histogram, write independently                           & Synchronisation required during page allocation and assignment                                 \\\hline
+    Thread-Local Pages and Merge & Write to thread local pages; merge non-full pages                                              & Synchronization during local page collection and during partition-range to merge assignment    \\\hline
   \end{tabular}
   \caption{Overview of the Slotted Page Managers}
 \end{table}
@@ -347,7 +347,7 @@ The Hybrid Page Manager (see Section \ref{subsubsection-Hybrid-Page-Manager}) us
 
 Like in the streaming Radix Partitioning case above, we store the tuples on slotted pages without synchronization.
 The tuple count in the metadata section also requires synchronization in the form of an atomic tuple count.
-As the morsel size is smaller than the materialized tuples' assigned part, we must increase the tuple counter more often than using streaming Radix Partitioning.
+As the morsel size is smaller than a part of the fully materialized tuples, we must increase the tuple counter more often than using streaming Radix Partitioning.
 
 \section{Collaborative Morsel Processing}\label{section-Collaborative-Morsel-Processing}
 \subsection{Overview}
@@ -428,13 +428,14 @@ To set an upper bound for the time complexity, we first want to analyze the tupl
         When using \acp{SMB}, we temporally store the tuple in the buffer, which increases the access count to two.
   \item \textbf{Histogram-based Partitioning:}
         To create a histogram, we must access the tuple once.
+        Both implementations use \acp{SMB}, which increases the tuple access count by one.
         Furthermore, if the implementation requires full materialization, we materialize all tuples before processing them.
-        This means that the tuple access frequency is two or three, depending on whether materialization is necessary.
+        This means that the tuple access frequency is three or four, depending on whether materialization is necessary.
 
   \item \textbf{Collaborative Morsel Processing:}
         In the more straightforward implementation with exclusive partition ranges, we must process each tuple at least $t$ times, with $t$ denoting the threads used.
         This is the case, as we assign each thread an exclusive partition range.
-        As we use \acp{SMB}, we access each tuple twice when processing it.
+        As we use \acp{SMB}, we access each tuple an additional time when writing it to its final position.
         Thus, the tuple access frequency is $t + 1$.
 
         When using processing units, we only have to process at most $\textrm{max}(pt_i), \; \forall i$ times.
@@ -448,7 +449,7 @@ To set an upper bound for the time complexity, we first want to analyze the tupl
         A tuple can only be merged into another page or moved to a different location once.
         Thus, our tuple access frequency is three.
 \end{itemize}
-Using the tuple access metric of each implementation, we can upper bound the tuple access frequency using this constant: $c_\textrm{TAF} = \textrm{max}(3, t+1)$, with $t$ denoting the thread count.
+Using the tuple access metric of each implementation, we can upper bound the tuple access frequency using this constant: $c_\textrm{TAF} = \textrm{max}(4, t+1)$, with $t$ denoting the thread count.
 As we only apply $O(1)$ operations on each tuple access, we can upper bound time complexity of the implementations using this constant $O(c_\textrm{TAF} * n) = O(n)$.
 Combining both lower- and upper bounds, our proposed implementations run in $\Theta(n) = \Omega(n) \cap O(n) $.
 \subsection{Space Complexity}\label{section-space-complexity}
@@ -459,7 +460,7 @@ As the \acfp{SMB} sizes are constant, we can upper bound it by a constant:
 \begin{equation}
   c_\textrm{SMB} = (\textrm{Size of a single SMB}) * (\textrm{Thread count})
 \end{equation}
-Similarly, the LocalPagesAndMerge uses thread-local slotted pages.
+Similarly, the LocalPagesAndMerge approach uses thread-local slotted pages.
 The sort-and-merge phase starts when we finish processing the incoming stream of tuples.
 All slotted pages of a partition that are not full, have to be merged.
 During the merge process, some slotted pages can be merged into other slotted pages and deallocated.
