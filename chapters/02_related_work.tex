@@ -8,7 +8,7 @@ This chapter reviews key techniques, including partitioned joins, radix partitio
 \section{Partitioned Joins}\label{sec-rw-partitioning-joins}
 Partitioned joins are a widely used class of hash-based join algorithms~\parencite{joins-real-system, hash-joins-hardware-tuning, equi-join-comparison}, frequently employed in modern database systems~\parencite{umbra, hyper, hyper-compilation}.
 
-A basic partitioned join algorithm consists of a partitioning and a join execution phase.
+A basic partitioned equi-join algorithm consists of a partitioning and a join execution phase.
 In the first phase, the algorithm partitions the build and probe sides using a hash key derived from the join condition.
 The subsequent join execution phase uses the property that only tuples within the same partition must be compared, improving locality and reducing unnecessary checks.
 The final output consists of the union of each partition’s results.
