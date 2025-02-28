@@ -1,3 +1,4 @@
+% !TeX root = ../../main.tex
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % EINSTELLUNGEN
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -54,11 +55,20 @@
 \newcommand{\PraesentationTitelseiteInhalt}{
     \begin{textblock*}{\paperwidth}[0,0](0cm,-\PraesentationSeitenrand - 6.5mm + \PraesentationPositionKorrekturOben)%
         \color{PraesentationTextfarbe}%
+
+        \begin{minipage}[t][\textheight]{\textwidth}
         \frametitle{\inserttitle}
-        \vspace*{49.4mm}
-        \usebeamerfont{author}\selectfont\insertauthor\\
-        \insertinstitute\\
-        \insertdate%
+        \vspace*{55.4mm}
+        {\usebeamerfont{author}\selectfont
+                    \textbf{Bachelor Thesis}\\
+                    \textbf{Author:} \insertauthor\\
+                    \textbf{Examiner:} Prof. Dr. Thomas Neumann\\
+                    \textbf{Supervisor:} Maximilian Rieger, M.Sc.\\
+                    \vfill
+                    \insertdate\\
+                    \insertinstitute
+                }
+                \end{minipage}
     \end{textblock*}
 }
 
