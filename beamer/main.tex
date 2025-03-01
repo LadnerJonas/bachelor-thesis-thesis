@@ -38,6 +38,12 @@
 \institute[]{\UniversitaetName}
 \date[\Datum]{Garching, 11.03.2025} \subject{Implementing an Efficient Shuffle Operator for Streaming Database Systems}
 
+% custom
+\def\imgpath{../figures}
+\usepackage{pgfplots}
+\usepackage{subcaption}
+\providecommand{\mathdefault}[1]{#1}
+
 \input{Ressourcen/Praesentation/Anfang.tex}
 
 \PraesentationMasterStandard
@@ -82,25 +88,135 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % FOLIENSTIL: Weisse Schrift auf schwarzem Grund
 % \PraesentationMasterWeissSchwarz
-\begin{frame}
-	\frametitle{Content}
-	\tableofcontents
-\end{frame}
+
+% \begin{frame}
+%   \frametitle{Content}
+%   \tableofcontents
+% \end{frame}
+
 \section{Introduction}
-\begin{frame}
-	\frametitle{Problem Statement}
+\begin{frame}{Problem Setting}
+  \textbf{Key Contribution:}
+  Efficient, multithreaded shuffle operator implementations.
+
+  \textbf{Shuffle-Simulation Process:}
+  \begin{enumerate}
+    \item \textbf{Tuple Generation:}
+          Randomly generated tuples with 32-bit keys and optional data fields.
+    \item \textbf{Data Shuffle:}
+          Tuples stored in partition buckets using slotted pages.
+    \item \textbf{Storing on Slotted Pages:}
+          Thread-local vs.
+          shared (locking/lock-free) write-out strategies.
+  \end{enumerate}
 \end{frame}
+
 \section{Implementation}
 \begin{frame}
-	\frametitle{Implementation}
+  \frametitle{Implementations}
 \end{frame}
+
 \section{Evaluation}
-\begin{frame}
-	\frametitle{Evaluation}
+\begin{frame}{Evaluation}
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple16-Partitions2.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple16-Partitions8.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 16B with 2 and 8 Partitions]{Benchmark Plots for Tuple of 16B with 2 and 8 Partitions}
+    \label{plot-shuffle-16B-2-8}
+  \end{figure}
 \end{frame}
+
+\begin{frame}{Evaluation}
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions32.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions1024.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
+    \label{plot-shuffle-4B-32-1024}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Evaluation}
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple16-Partitions32.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple16-Partitions1024.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions}
+    \label{plot-shuffle-16B-32-1024}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Evaluation}
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions32.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions1024.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
+    \label{plot-shuffle-100B-32-1024}
+  \end{figure}
+\end{frame}
+\begin{frame}{Peak Heap Memory}
+  \begin{figure}[h]
+    \centering
+    \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/memory_plot-16B-P32-Th40.pgf}}
+    \caption[Peak Heap Memory Benchmark Plot]{Peak Heap Usage when using 32 Partitions, 40 Threads and 67.2 Mio.
+      16B Tuples (1 GiB)} \label{plot-heap-16B-P32-Th40}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Comparison with Apache Flink}
+  \begin{figure}[h]
+    \centering
+    \resizebox{.7\linewidth}{!}{\input{\imgpath/evaluation/apache-flink-comparison.pgf}}
+    \caption[Tuples per Second Comparison Plot with Apache Flink]{Tuples per Second Comparision when using 1024 Partitions}
+    \label{plot-apache-flink-comparison}
+  \end{figure}
+\end{frame}
+
 \section{Conclusion}
 \begin{frame}
-	\frametitle{Future Work}
+  \frametitle{Future Work}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
