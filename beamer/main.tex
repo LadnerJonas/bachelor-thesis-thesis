@@ -39,7 +39,7 @@
 \date[\Datum]{Garching, 11.03.2025} \subject{Implementing an Efficient Shuffle Operator for Streaming Database Systems}
 
 % custom
-\def\imgpath{../figures}
+\def\imgpath{figures}
 \usepackage{pgfplots}
 \usepackage{subcaption}
 \providecommand{\mathdefault}[1]{#1}
@@ -112,10 +112,53 @@
 \end{frame}
 
 \section{Implementation}
-\begin{frame}
-  \frametitle{Implementations}
+\begin{frame}{Naive approach: \emph{OnDemand}}
+  \begin{itemize}
+    \item \textbf{OnDemand:}
+          Tuples are directly written to the partition buckets.
+    \item \textbf{Problems:}
+          \begin{itemize}
+            \item High contention on partition buckets.
+          \end{itemize}
+  \end{itemize}
 \end{frame}
 
+\begin{frame}{Optimized approach: \emph{Smb}}
+  \begin{itemize}
+    \item \textbf{Software Managed Buffers (SMBs):}
+          \begin{itemize}
+            \item Cacheline-sized, thread-local buffers for each partition.
+            \item Flush when buffer is full.
+          \end{itemize}
+    \item \textbf{Problems:}
+          \begin{itemize}
+            \item High contention on partition buckets.
+          \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle<1>{{Histogram-based approach: \emph{Radix}}}
+  \frametitle<2>{{Histogram-based approaches: \emph{Radix} and \emph{Hybrid}}}
+  \begin{itemize}
+    \item \textbf{Histogram:}
+          \begin{itemize}
+            \item Thread-local histograms for each partition.
+            \item Flush when histogram is full.
+          \end{itemize}
+    \item \textbf{Problems:}
+          \begin{itemize}
+            \item High contention on histograms.
+          \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Reducing contention: \emph{CmpProcessingUnits}}
+
+\end{frame}
+\begin{frame}{Avoiding contention: \emph{LocalPagesAndMerge}}
+
+\end{frame}
 \section{Evaluation}
 \begin{frame}{Evaluation}
   \begin{figure}[h]
@@ -130,7 +173,7 @@
     \end{subfigure}
     \begin{subfigure}{\textwidth}
       \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
     \end{subfigure}
     \caption[Shuffle Benchmark Plots for Tuple of 16B with 2 and 8 Partitions]{Benchmark Plots for Tuple of 16B with 2 and 8 Partitions}
     \label{plot-shuffle-16B-2-8}
@@ -150,7 +193,7 @@
     \end{subfigure}
     \begin{subfigure}{\textwidth}
       \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
     \end{subfigure}
     \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
     \label{plot-shuffle-4B-32-1024}
@@ -170,7 +213,7 @@
     \end{subfigure}
     \begin{subfigure}{\textwidth}
       \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
     \end{subfigure}
     \caption[Shuffle Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions}
     \label{plot-shuffle-16B-32-1024}
@@ -190,7 +233,7 @@
     \end{subfigure}
     \begin{subfigure}{\textwidth}
       \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
     \end{subfigure}
     \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
     \label{plot-shuffle-100B-32-1024}
@@ -215,8 +258,20 @@
 \end{frame}
 
 \section{Conclusion}
-\begin{frame}
-  \frametitle{Future Work}
+\begin{frame}{Conclusion and Future Work}
+  \textbf{Conclusion:}
+
+  \begin{itemize}
+    \item Thread-local slotted pages are optimal for low partition counts.
+    \item SMB-based methods scale best for high partition counts.
+  \end{itemize}
+
+  \textbf{Future Work:}
+  \begin{itemize}
+    \item Further reducing contention on machines with 20+ cores.
+    \item Evaluate the implementations in a real-world streaming system.
+  \end{itemize}
+
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
