@@ -34,7 +34,7 @@
 }
 
 \title{Implementing an Efficient Shuffle Operator for Streaming Database Systems}
-\author{\PersonTitel{} \PersonVorname{} \PersonNachname}
+\author{\PersonTitel{}\PersonVorname{} \PersonNachname}
 \institute[]{\UniversitaetName}
 \date[\Datum]{Garching, 11.03.2025} \subject{Implementing an Efficient Shuffle Operator for Streaming Database Systems}
 
@@ -99,7 +99,7 @@
   \textbf{Key Contribution:}
   Efficient, multithreaded shuffle operator implementations.
 
-  \textbf{Shuffle-Simulation Process:}
+  \textbf{Streaming Shuffle Simulation:}
   \begin{enumerate}
     \item \textbf{Tuple Generation:}
           Randomly generated tuples with 32-bit keys and optional data fields.
@@ -118,17 +118,17 @@
           Tuples are directly written to the partition buckets.
     \item \textbf{Problems:}
           \begin{itemize}
-            \item High contention on partition buckets.
+            \item Each tuples causes a write-out to a shared slotted page.
+            \item Very high contention on partition buckets.
           \end{itemize}
   \end{itemize}
-\end{frame}
-
-\begin{frame}{Optimized approach: \emph{Smb}}
+  \pause
+  {\PraesentationSchriftgroesseSehrGross\selectfont Optimized approach: \emph{Smb}}
   \begin{itemize}
     \item \textbf{Software Managed Buffers (SMBs):}
           \begin{itemize}
             \item Cacheline-sized, thread-local buffers for each partition.
-            \item Flush when buffer is full.
+            \item Flush partition when buffer is full.
           \end{itemize}
     \item \textbf{Problems:}
           \begin{itemize}
@@ -154,10 +154,42 @@
 \end{frame}
 
 \begin{frame}{Reducing contention: \emph{CmpProcessingUnits}}
+  \begin{itemize}
+    \item Partition threads into \emph{Processing Units}
+    \item Within each Processing Unit:
+          \begin{itemize}
+            \item Each thread is assigned an exclusive partition range
+            \item No overlap between partition ranges
+            \item Only a single thread writes to a partition
+          \end{itemize}
+  \end{itemize}
 
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Each tuple must be processed by all threads of a Processing Unit
+  \end{itemize}
 \end{frame}
 \begin{frame}{Avoiding contention: \emph{LocalPagesAndMerge}}
+  \textbf{Thread-local Pages:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Each thread has its own slotted pages
+    \item Avoids synchronization
+  \end{itemize}
+  \textbf{Merging Phase:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item All non-full pages have to be merged
+    \item We assign each thread a group of partitions to merge
+    \item Each thread merges the pages of its assigned partitions without synchronization
+  \end{itemize}
 
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Huge initial memory consumption
+  \end{itemize}
 \end{frame}
 \section{Evaluation}
 \begin{frame}{Evaluation}
@@ -252,21 +284,19 @@
   \begin{figure}[h]
     \centering
     \resizebox{.7\linewidth}{!}{\input{\imgpath/evaluation/apache-flink-comparison.pgf}}
-    \caption[Tuples per Second Comparison Plot with Apache Flink]{Tuples per Second Comparision when using 1024 Partitions}
+    \caption[Tuples per Second Comparison Plot with Apache Flink]{Tuples per Second Comparison when using 1024 Partitions}
     \label{plot-apache-flink-comparison}
   \end{figure}
 \end{frame}
 
 \section{Conclusion}
-\begin{frame}{Conclusion and Future Work}
-  \textbf{Conclusion:}
-
+\begin{frame}{Conclusion}
   \begin{itemize}
     \item Thread-local slotted pages are optimal for low partition counts.
     \item SMB-based methods scale best for high partition counts.
   \end{itemize}
 
-  \textbf{Future Work:}
+  {\PraesentationSchriftgroesseSehrGross\selectfont Future Work}
   \begin{itemize}
     \item Further reducing contention on machines with 20+ cores.
     \item Evaluate the implementations in a real-world streaming system.
