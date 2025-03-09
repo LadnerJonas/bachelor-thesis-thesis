@@ -42,6 +42,7 @@
 \def\imgpath{figures}
 \usepackage{pgfplots}
 \usepackage{subcaption}
+\usepackage{xcolor}
 \providecommand{\mathdefault}[1]{#1}
 
 \input{Ressourcen/Praesentation/Anfang.tex}
@@ -96,11 +97,10 @@
 
 \section{Introduction}
 \begin{frame}{Problem Setting}
-  \textbf{Key Contribution:}
-  Efficient, multithreaded shuffle operator implementations.
 
   \textbf{Streaming Shuffle Simulation:}
   \begin{enumerate}
+    \vspace{-1.5em}
     \item \textbf{Tuple Generation:}
           Randomly generated tuples with 32-bit keys and optional data fields.
     \item \textbf{Data Shuffle:}
@@ -109,52 +109,146 @@
           Thread-local vs.
           shared (locking/lock-free) write-out strategies.
   \end{enumerate}
+
+  \begin{figure}[h]
+    \resizebox{.9\linewidth}{!}{
+      \begin{tikzpicture}
+        % Page Outline
+        \foreach \x in {0, 14}{
+            \draw (\x,0) -- (\x,1.95);
+            \draw (\x-0.15,1.85) -- (\x+0.15,2.05);
+            \draw (\x,3) -- (\x,2.05);
+            \draw (\x-0.15,1.95) -- (\x+0.15,2.15);
+          }
+
+        % Header Section
+        \fill[gray!20] (0,3) rectangle (5,3.5);
+        \node[anchor=center] at (2.5,3.25) {\textbf{Header}};
+        \draw (0,3) rectangle (5,3.5);
+
+        % Slots Section
+        \fill[blue!20] (5,3) rectangle (14,3.5);
+        \fill[blue!20] (0,2.5) rectangle (6,3);
+
+        % Slots (Fixed-size entries)
+        \foreach \x in {5, 8, 11} {
+            \draw (\x,3) rectangle (\x+3,3.5);
+            \node[anchor=center] at (\x+1.5,3.25) {Slot \pgfmathparse{(\x-2)/3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+          }
+        \foreach \x in {0, 3} {
+            \draw (\x,2.5) rectangle (\x+3,3);
+            \node[anchor=center] at (\x+1.5,2.75) {Slot \pgfmathparse{(\x)/3 + 4} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+          }
+
+        \node[anchor=center] at (6+1.6,2.75) {Slots grow $\rightarrow$};
+
+        % Data Section
+        \fill[red!20] (7,0) rectangle (14,1.5);
+        \fill[red!20] (0,0) rectangle (14,1);
+
+        \foreach \x in {14, 7} {
+            \draw (\x,0) rectangle (\x-7,0.5);
+            \node[anchor=center] at (\x-3.5,0.25) {Data \pgfmathparse{2-(\x)/7 + 1} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+            \draw (\x,0.5) rectangle (\x-7,1);
+            \node[anchor=center] at (\x-3.5,0.75) {Data \pgfmathparse{2-(\x)/7 + 3} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+          }
+        \draw (14,1) rectangle (7,1.5);
+        \node[anchor=center] at (14-3.5,1.25) {Data \pgfmathparse{2-(14)/7 + 5} \pgfmathprintnumber[precision=0]{\pgfmathresult}};
+        \node[anchor=center] at (7-1.6,1.25) {$\leftarrow$ Data grow};
+
+      \end{tikzpicture}}
+    \centering
+    \caption{Slotted Page grow visualization}
+  \end{figure}
+
+  \vspace{-0.5em}\textbf{Key Contribution:}
+  Efficient, multithreaded shuffle operator implementations.
 \end{frame}
 
 \section{Implementation}
 \begin{frame}{Naive approach: \emph{OnDemand}}
+  \textbf{OnDemand:}
   \begin{itemize}
-    \item \textbf{OnDemand:}
-          Tuples are directly written to the partition buckets.
-    \item \textbf{Problems:}
-          \begin{itemize}
-            \item Each tuples causes a write-out to a shared slotted page.
-            \item Very high contention on partition buckets.
-          \end{itemize}
+    \vspace{-1.5em}
+    \item Tuples are directly written to the partition buckets.
+  \end{itemize}
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Each tuples causes a write-out to a shared slotted page.
+    \item Very high contention on partition buckets.
   \end{itemize}
   \pause
   {\PraesentationSchriftgroesseSehrGross\selectfont Optimized approach: \emph{Smb}}
+
+  \textbf{Software Managed Buffers (SMBs):}
   \begin{itemize}
-    \item \textbf{Software Managed Buffers (SMBs):}
-          \begin{itemize}
-            \item Cacheline-sized, thread-local buffers for each partition.
-            \item Flush partition when buffer is full.
-          \end{itemize}
-    \item \textbf{Problems:}
-          \begin{itemize}
-            \item High contention on partition buckets.
-          \end{itemize}
+    \vspace{-1.5em}
+    \item Cacheline-sized, thread-local buffers for each partition.
+    \item Flush partition when buffer is full.
+  \end{itemize}
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item High contention on partition buckets.
   \end{itemize}
 \end{frame}
 
-\begin{frame}
-  \frametitle<1>{{Histogram-based approach: \emph{Radix}}}
-  \frametitle<2>{{Histogram-based approaches: \emph{Radix} and \emph{Hybrid}}}
+\begin{frame}{Histogram-based approach: \emph{Radix}}
+  \textbf{Materialize large chunk of incoming tuples:}
   \begin{itemize}
-    \item \textbf{Histogram:}
-          \begin{itemize}
-            \item Thread-local histograms for each partition.
-            \item Flush when histogram is full.
-          \end{itemize}
-    \item \textbf{Problems:}
-          \begin{itemize}
-            \item High contention on histograms.
-          \end{itemize}
+    \vspace{-1.5em}
+    \item Assign each thread a memory region within this chunk.
+    \item Memory region can be reused for next chunk.
+  \end{itemize}
+  \textbf{Local Histogram:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Create thread-local histogram (frequency map) for each partition.
+  \end{itemize}
+  \textbf{Global Histogram:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Merge local histograms into a global histogram.
+    \item Pre-allocate slotted pages based on global histogram.
+    \item Assign exclusive write-out locations based on local histograms.
+  \end{itemize}
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Synchronization overhead during histogram merging and page allocation.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Histogram-based approach: \emph{Hybrid}}
+  \textbf{Materialize small chunk of incoming tuples:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Assign each thread a memory region within this chunk.
+    \item Memory region can be reused for next chunk.
+  \end{itemize}
+  \textbf{Local Histogram:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Create thread-local histogram (frequency map) for each partition.
+  \end{itemize}
+  \textbf{Ad-hoc page allocation:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Assign exclusive write-out locations based on local histograms.
+    \item Allocate slotted page for local histogram if not already allocated.
+  \end{itemize}
+  \textbf{Problems:}
+  \begin{itemize}
+    \vspace{-1.5em}
+    \item Synchronization overhead during page allocation.
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Reducing contention: \emph{CmpProcessingUnits}}
+  \textbf{Processing Units:}
   \begin{itemize}
+    \vspace{-1.5em}
     \item Partition threads into \emph{Processing Units}
     \item Within each Processing Unit:
           \begin{itemize}
@@ -192,7 +286,8 @@
   \end{itemize}
 \end{frame}
 \section{Evaluation}
-\begin{frame}{Evaluation}
+\begin{frame}{Evaluation \small{\color{red} Die beiden Grafiken werden noch aktualisert (9 statt 12 Impl)}}
+
   \begin{figure}[h]
     \centering
     \begin{subfigure}{.49\textwidth}
@@ -289,11 +384,15 @@
   \end{figure}
 \end{frame}
 
+\begin{frame}
+  {\color{red} TODO: 2 und 8 Partitionen auf 128 Threads Server}
+\end{frame}
+
 \section{Conclusion}
 \begin{frame}{Conclusion}
   \begin{itemize}
-    \item Thread-local slotted pages are optimal for low partition counts.
-    \item SMB-based methods scale best for high partition counts.
+    \item Thread-local slotted pages are optimal for low partition counts (<32).
+    \item SMB-based methods scale best for high partition counts (>32).
   \end{itemize}
 
   {\PraesentationSchriftgroesseSehrGross\selectfont Future Work}
