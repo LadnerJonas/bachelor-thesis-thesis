@@ -42,6 +42,7 @@
 \def\imgpath{figures}
 \usepackage{pgfplots}
 \usepackage{subcaption}
+\usepackage{appendixnumberbeamer}
 %\usepackage{xcolor}
 \providecommand{\mathdefault}[1]{#1}
 
@@ -254,7 +255,7 @@
           \begin{itemize}
             \item Each thread is assigned an exclusive partition range
             \item No overlap between partition ranges
-            \item Only a single thread writes to a partition
+            \item Only a single thread writes to a given partition
           \end{itemize}
   \end{itemize}
 
@@ -263,6 +264,57 @@
     \vspace{-1.5em}
     \item Each tuple must be processed by all threads of a Processing Unit
   \end{itemize}
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      % Set styles for each level
+      \tikzstyle{root}=[circle,draw,minimum size=14mm,inner sep=0pt,fill=white]
+      \tikzstyle{intermediate}=[circle,draw,minimum size=12mm,inner sep=0pt,fill=white]
+      \tikzstyle{leaf}=[circle,draw,minimum size=16mm,inner sep=0pt,fill=white]
+
+      % Adjust vertical distances
+      \tikzset{level distance=20mm} % Adjust child level distance
+      \tikzset{level 1/.style={sibling distance=18mm}, level 2/.style={sibling distance=18mm}}
+
+      % Draw edges behind nodes
+      \begin{scope}[every path/.style={draw,thick,black}]
+        % Root nodes
+        \node[root] (PU1) at (0,1) {PU1} % Raise root level
+        child {node[intermediate] (T1) {T1}
+            child {node[leaf] {\small$[1,4]$}}
+          }
+        child {node[intermediate] (T2) {T2}
+            child {node[leaf] {\small$[5,8]$}}
+          }
+        child {node[intermediate] (T3) {T3}
+            child {node[leaf] {\small$[9,12]$}}
+          }
+        child {node[intermediate] (T4) {T4}
+            child {node[leaf] {\small$[13,16]$}}
+          }
+        child {node[intermediate] (T5) {T5}
+            child {node[leaf] {\small$[17,20]$}}
+          };
+
+        \node[root] (PU2) at (9.5,1) {PU2} % Raise root level
+        child {node[intermediate] (T6) {T6}
+            child {node[leaf] {\small$[1,4]$}}
+          }
+        child {node[intermediate] (T7) {T7}
+            child {node[leaf] {\small$[5,8]$}}
+          }
+        child {node[intermediate] (T8) {T8}
+            child {node[leaf] {\small$[9,12]$}}
+          }
+        child {node[intermediate] (T9) {T9}
+            child {node[leaf] {\small$[13,16]$}}
+          }
+        child {node[intermediate] (T10) {T10}
+            child {node[leaf] {\small$[17,20]$}}
+          };
+      \end{scope}
+    \end{tikzpicture}
+    \centering
+  \end{figure}
 \end{frame}
 \begin{frame}{Avoiding contention: \emph{LocalPagesAndMerge}}
   \textbf{Thread-local Pages:}
@@ -286,7 +338,7 @@
   \end{itemize}
 \end{frame}
 \section{Evaluation}
-\begin{frame}{Evaluation}
+\begin{frame}{Evaluation -- \LARGE 16 Byte Tuple and 2/8 Partitions}
   Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
 
   \begin{figure}[h]
@@ -308,28 +360,7 @@
   \end{figure}
 \end{frame}
 
-\begin{frame}{Evaluation}
-  Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
-  \begin{figure}[h]
-    \centering
-    \begin{subfigure}{.49\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions32.pgf}}
-    \end{subfigure}
-    \begin{subfigure}{.49\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions1024.pgf}}
-    \end{subfigure}
-    \begin{subfigure}{\textwidth}
-      \centering
-      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
-    \end{subfigure}
-    \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
-    \label{plot-shuffle-4B-32-1024}
-  \end{figure}
-\end{frame}
-
-\begin{frame}{Evaluation}
+\begin{frame}{Evaluation -- \LARGE 16 Byte Tuple and 32/1024 Partitions}
   Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
   \begin{figure}[h]
     \centering
@@ -350,26 +381,6 @@
   \end{figure}
 \end{frame}
 
-\begin{frame}{Evaluation}
-  Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
-  \begin{figure}[h]
-    \centering
-    \begin{subfigure}{.49\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions32.pgf}}
-    \end{subfigure}
-    \begin{subfigure}{.49\textwidth}
-      \centering
-      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions1024.pgf}}
-    \end{subfigure}
-    \begin{subfigure}{\textwidth}
-      \centering
-      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
-    \end{subfigure}
-    \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
-    \label{plot-shuffle-100B-32-1024}
-  \end{figure}
-\end{frame}
 \begin{frame}{Peak Heap Memory}
   \begin{figure}[h]
     \centering
@@ -388,7 +399,7 @@
   \end{figure}
 \end{frame}
 
-\begin{frame}{Evaluation}
+\begin{frame}{Evaluation -- \LARGE 16 Byte Tuple and 4/32 Partitions}
   AMD EPYC 7713, 2x64 threads, 2 NUMA nodes,  1 TB memory
   \begin{figure}[h]
     \centering
@@ -404,7 +415,7 @@
       \centering
       \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/epyc/legend.pgf}}
     \end{subfigure}
-    \caption[Shuffle Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 16B with 32 and 1024 Partitions}
+    \caption[Shuffle Benchmark Plots for Tuple of 16B with 4 and 32 Partitions]{Benchmark Plots for Tuple of 16B with 4 and 32 Partitions}
     \label{plot-epyc-shuffle-16B-32-1024}
   \end{figure}
 \end{frame}
@@ -423,6 +434,50 @@
     \item Investigate the impact of data skew.
   \end{itemize}
 
+\end{frame}
+
+\appendix
+
+\begin{frame}{Evaluation -- \LARGE 4 Byte Tuple and 32/1024 Partitions}
+  Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions32.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple4-Partitions1024.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 4B with 32 and 1024 Partitions}
+    \label{plot-shuffle-4B-32-1024}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Evaluation -- \LARGE 100 Byte Tuple and 32/1024 Partitions}
+  Intel i9-7900X, 1x20 threads, 1 NUMA node, 128 GB memory
+  \begin{figure}[h]
+    \centering
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions32.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{.49\textwidth}
+      \centering
+      \resizebox{\linewidth}{!}{\input{\imgpath/evaluation/Tuples_per_Second-Tuple100-Partitions1024.pgf}}
+    \end{subfigure}
+    \begin{subfigure}{\textwidth}
+      \centering
+      \resizebox{.85\linewidth}{!}{\input{\imgpath/evaluation/legend.pgf}}
+    \end{subfigure}
+    \caption[Shuffle Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions]{Benchmark Plots for Tuple of 100B with 32 and 1024 Partitions}
+    \label{plot-shuffle-100B-32-1024}
+  \end{figure}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
