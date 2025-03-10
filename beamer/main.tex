@@ -43,6 +43,7 @@
 \usepackage{pgfplots}
 \usepackage{subcaption}
 \usepackage{appendixnumberbeamer}
+\usepackage{wrapfig}
 %\usepackage{xcolor}
 \providecommand{\mathdefault}[1]{#1}
 
@@ -179,9 +180,24 @@
     \item Each tuples causes a write-out to a shared slotted page.
     \item Very high contention on partition buckets.
   \end{itemize}
-  \pause
-  {\PraesentationSchriftgroesseSehrGross\selectfont Optimized approach: \emph{Smb}}
 
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      \foreach \x in {1, ..., 8}{
+          \node at (\x-1,-4) [minimum size=1cm,draw] (P\x) {$P_{\x}$};
+        }
+      \foreach \x in {1, ..., 6}{
+          \node at (\x,0) [minimum size=1cm,draw] (T\x) {$T_{\x}$};
+        }
+      \draw[->,thick] (T1.south) -- (P4.north);
+      \draw[->,thick] (T2.south) -- (P5.north);
+      \draw[->,thick] (T3.south) -- (P2.north);
+      \draw[->,thick] (T4.south) -- (P4.north);
+    \end{tikzpicture}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{Optimized approach: \emph{Smb}}
   \textbf{Software Managed Buffers (SMBs):}
   \begin{itemize}
     \vspace{-1.5em}
@@ -193,6 +209,29 @@
     \vspace{-1.5em}
     \item High contention on partition buckets.
   \end{itemize}
+
+  \begin{figure}[h]
+    \begin{tikzpicture}
+      \foreach \x in {1, ..., 4}{
+          \node at (\x-2,-6) [minimum size=1cm,draw] (P\x) {$P_{\x}$};
+        }
+      \foreach \x in {1, ..., 4}{
+          \node at (4*\x - 9.5,-3) [minimum height=1cm, minimum width=4cm, align=center,draw] (B\x) {$B_{\x}$};
+        }
+
+      \foreach \x in {1, ..., 8}{
+          \node at (\x-4,0) [minimum size=1cm,draw] (T\x) {$T_{\x}$};
+        }
+      \draw[->,thick] (T1.south) -- (B4.north);
+      \draw[->,thick] (T2.south) -- (B1.north);
+      \draw[->,thick] (T3.south) -- (B2.north);
+      \draw[->,thick] (T4.south) -- (B4.north);
+      \draw[->,thick] (T5.south) -- (B4.north);
+      \draw[->,thick] (T6.south) -- (B3.north);
+
+      \draw[->,thick] (B2.south) -- (P2.north) node[midway, right] {Flush when full};
+    \end{tikzpicture}
+  \end{figure}
 \end{frame}
 
 \begin{frame}{Histogram-based approach: \emph{Radix}}
